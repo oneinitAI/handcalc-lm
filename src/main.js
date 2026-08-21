@@ -69,6 +69,12 @@ const state = {
 const app = document.getElementById('app')
 app.innerHTML = `
   <main class="stage">
+    <nav class="tabs">
+      <button class="tab-btn on" data-tab="text">文本模型</button>
+      <button class="tab-btn" data-tab="image">图像模型</button>
+      <button class="tab-btn" data-tab="voice">语音模型</button>
+    </nav>
+    <div id="tab-text" class="tab-panel on">
     <header class="masthead">
       <h1 class="title">手算<span class="hl">LM</span></h1>
       <p class="sub">给你权重，亲手算出它的下一句话</p>
@@ -284,6 +290,31 @@ app.innerHTML = `
 
     <div id="glossaryRoot"></div>
 
+    <div id="achRoot"></div>
+    </div>
+    <div id="tab-image" class="tab-panel">
+      <div class="teach">
+        <h3>第一步：图像 = 一串像素数字</h3>
+        <p>你看到的每一张图，在计算机里都是<b>一行数字</b>：每个像素一个亮度值（灰度 0~15）。一张 16×16 的图 = <b>256 个数字</b>，从左到右、从上到下排成一串。<b>彩色图只是把每个像素拆成三个值（红/绿/蓝 RGB）</b>——原理相同，我们先用灰度讲清。</p>
+      </div>
+      <div class="teach">
+        <h3>第二步：为什么"猜下一个像素"能画图？</h3>
+        <p>和文字模型<b>完全一样的思路</b>：图像模型 = 学会"猜下一个像素"的 Transformer。它看前 32 个像素，猜第 33 个。训练时喂它图案的像素序列，它学会"这个图案的像素是怎么排布的"；生成时给它开头几个像素，它就能把整张图<b>续写</b>出来。</p>
+        <p class="muted">这就是<b>自回归图像生成</b>（自回归=把输出当输入继续生成）——一幅图被当作"一句由像素组成的句子"。</p>
+      </div>
+      <div class="teach">
+        <h3>第三步：训练与生成（和文字模型同框架）</h3>
+        <p><b>训练</b>：loss = 猜错多少像素 → 梯度下降调参数（与文本训练同一套代码）。<b>生成</b>：给开头 8 个像素 → 模型逐像素续写 248 个 → 渲染成图（看动画：从噪声到图案）。</p>
+      </div>
+      <div class="teach">
+        <h3>第四步：图像模型的家族（真实世界）</h3>
+        <ul>
+          <li><b>自回归（PixelCNN / 图像 Transformer）</b>：逐像素猜——就是我们这个演示的放大版。</li>
+          <li><b>GAN（生成对抗网络）</b>：一个"画家"和一个"鉴定师"互相较量，直到画得像真的。</li>
+          <li><b>扩散模型（Diffusion，如 Stable Diffusion）</b>：把图一点点加噪成雪花，再学"怎么去噪还原"；生成时从纯噪声开始一步步"去噪"出一张图——现在主流 AI 画图都是它。</li>
+          <li><b>图像理解</b>：CNN（卷积）、ViT（视觉 Transformer）、CLIP（把图和文字对齐——"猫"的图片和"猫"的文字在向量空间里靠在一起）。</li>
+        </ul>
+      </div>
     <section class="card" id="pixelCard">
       <h2>捌 · 图像模型（像素即序列）</h2>
       <p class="muted">图像在模型眼里 = <b>256 个像素值（16×16 灰度 16 级）</b>。训练它"猜下一个像素"——和文字模型<b>同一个架构</b>，换数据就能画图。</p>
@@ -305,7 +336,30 @@ app.innerHTML = `
       <div class="viz"><div class="viz-title">loss 曲线（像素版）</div><canvas id="pixLoss" class="canvas"></canvas></div>
       <div class="howto">① 选图案，或点「自己画」在画板上涂一个图形 → ② 开始训练（看 loss 下降）→ ③ 生成，看模型从噪声逐步"画出"它学到的<br>它和文字模型是<b>同一个 Transformer</b>，只是把"字"换成 16 级灰度像素——图像生成模型（扩散模型）的雏形。</div>
     </section>
-
+    </div>
+    <div id="tab-voice" class="tab-panel">
+      <div class="teach">
+        <h3>第一步：声音 = 随时间变化的振动</h3>
+        <p>你听到的每一个音，都是空气的<b>振动</b>。振动快（频率高）→ 音高高；振动慢 → 音高低。把声音录下来，就是一条<b>波形</b>：每秒上万次记下空气振动的幅度（采样）。<b>简谱（1 2 3 4 5 6 7）就是"音高序列"的人类记法</b>——我们把它当作声音的 token。</p>
+      </div>
+      <div class="teach">
+        <h3>第二步：为什么"猜下一个音"能作曲？</h3>
+        <p>旋律也是序列！模型看前 16 个音，猜第 17 个。训练"小星星"后，它记住了音高的走向规律——给它开头几个音，它就能续写出<b>像小星星的新旋律</b>。这是<b>音乐生成模型的雏形</b>（真实的有 MusicGen、音频扩散）。</p>
+      </div>
+      <div class="teach">
+        <h3>第三步：训练与生成</h3>
+        <p><b>训练</b>：loss = 猜错下一个音 → 梯度下降（同框架）。<b>生成</b>：开头 8 个音 → 续写 48 个 → 播放听它创作。</p>
+      </div>
+      <div class="teach">
+        <h3>第四步：从旋律到真实语音</h3>
+        <p>真实语音比"一串音高"复杂——它同时包含几十个频率成分（泛音），所以：</p>
+        <ul>
+          <li><b>频谱（Spectrogram）</b>：把每个瞬间的声音拆成"哪些频率有多强"，画成热力图。真实语音模型处理的不是单音高，而是<b>频谱帧</b>。</li>
+          <li><b>ASR 语音识别</b>（如 Whisper）：听频谱 → 输出文字。<b>TTS 语音合成</b>（如 ElevenLabs）：文字 → 频谱 → 波形。</li>
+          <li><b>音频生成</b>：给提示生成音乐/音效——本质也是"猜下一个音频片段"。</li>
+        </ul>
+        <p class="muted"><b>多模态统一视角</b>：文本=猜字、图像=猜像素、语音=猜音——把一切变成数字序列，同一个"猜下一个"模型通吃（GPT-4V 能看能听能说）。</p>
+      </div>
     <section class="card" id="voiceCard">
       <h2>玖 · 语音模型（旋律序列）</h2>
       <p class="muted">旋律 = <b>一串音高值</b>（简谱 1-7 + 0 休止）。训练它"猜下一个音"——学会后模型能<b>自己续写旋律并演奏</b>。</p>
@@ -331,7 +385,7 @@ app.innerHTML = `
       <div class="howto">① 选一首旋律（或输入自己的简谱）→ ② 开始训练（看 loss 下降）→ ③ 「模型作曲」续写新旋律 → 「播放」听它创作<br>语音模型和文字模型是<b>同一个架构</b>——真实 TTS/ASR 把声波变成数字（频谱）后，同样是"猜下一个值"。</div>
     </section>
 
-    <div id="achRoot"></div>
+    </div>
   </main>
 `
 
@@ -1248,6 +1302,24 @@ $('melGenBtn').addEventListener('click', genMelody)
 buildMelody(parseMelody(MELODIES[0].seq), MELODIES[0].name)
 
 // ---------- 启动 ----------
+// Tab 页签切换（文本/图像/语音）
+document.querySelectorAll('.tab-btn').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach((x) => x.classList.remove('on'))
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('on'))
+    b.classList.add('on')
+    document.getElementById('tab-' + b.dataset.tab).classList.add('on')
+    // 隐藏面板的 canvas 尺寸为 0，切回时重绘
+    setTimeout(() => {
+      try {
+        lossChart.draw(); heatmap.draw(); attnHeatmap.draw()
+        pixLossChart.draw(); melLossChart.draw()
+        if (state.pix) { renderGrid($('pixTarget'), state.pix.grid); renderGrid($('pixOut'), seqToGrid(Array(256).fill(0))) }
+        if (state.mel) { renderMelody($('melViz'), state.mel.seq); renderMelody($('melGenViz'), state.mel.composed || []) }
+      } catch (e) { /* 忽略未就绪 */ }
+    }, 60)
+  })
+})
 renderAch()
 renderGlossary()
 initNotes()
