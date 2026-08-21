@@ -14,6 +14,7 @@ import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
 import { FAQ } from './glossary.js'
 import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
+import { PIXEL_PATTERNS, gridToSeq, seqToGrid, renderGrid } from './pixel.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -281,6 +282,34 @@ app.innerHTML = `
     <div id="microscopeRoot"></div>
 
     <div id="glossaryRoot"></div>
+
+    <section class="card" id="pixelCard">
+      <h2>捌 · 图像模型（像素即序列）</h2>
+      <p class="muted">图像在模型眼里 = <b>一串像素值</b>。预测下一个像素 = 文本预测下一个字——同一个模型，换数据就能"画图"。</p>
+      <div class="corpus-pick" id="pixelPick">
+        ${PIXEL_PATTERNS.map((p) => `<button class="chip" data-pix="${p.id}">${p.name}</button>`).join('')}
+      </div>
+      <div class="row">
+        <button id="pixTrainBtn" class="btn" title="用图案的像素序列训练模型（和文本训练同一套代码）">训练它学画</button>
+        <button id="pixGenBtn" class="btn ghost" disabled title="从图案开头的 4 个像素开始，让模型生成整幅图">生成</button>
+        <span class="hint" id="pixInfo"></span>
+      </div>
+      <div class="viz-row">
+        <div class="viz"><div class="viz-title">目标图案</div><canvas id="pixTarget" class="pixel-canvas"></canvas></div>
+        <div class="viz"><div class="viz-title">模型生成 <span class="tag" id="pixStage">未训练</span></div><canvas id="pixOut" class="pixel-canvas"></canvas></div>
+      </div>
+      <div class="howto">① 选一个图案 → ② 点「训练它学画」（约 2 秒）→ ③ 点「生成」，看模型从噪声学会画出图案。<br>它和文本模型是<b>同一个架构</b>，只是把"字"换成了"像素"——这就是图像生成模型的雏形（扩散模型本质也在猜"下一个像素"）。</div>
+    </section>
+
+    <section class="card" id="voiceCard">
+      <h2>玖 · 语音与多模态</h2>
+      <p class="muted"><b>声音 = 随时间变化的振动</b>。模型学语音，就是学"下一个振动"的规律——和猜字、猜像素同一个思路。</p>
+      <div class="row">
+        <button id="speakBtn" class="btn" title="把当前语料文本转成音调播放——每个字符一个音高，你会"听到"模型在说什么">让模型朗读</button>
+        <span class="hint" id="speakInfo"></span>
+      </div>
+      <div class="howto">「让模型朗读」把当前语料转成音调序列播放（每个字符一个音高）。<br>真实语音模型（ASR/TTS）把声波变成数字（频谱），再用序列模型处理。<b>多模态</b> = 把图像/声音都变成数字序列，交给同一个"猜下一个"模型——如 CLIP 把图与文对齐，GPT-4V 能同时看和听。</div>
+    </section>
 
     <div id="achRoot"></div>
   </main>
@@ -1016,7 +1045,7 @@ function renderAch() {
   const earned = new Set(state.ach.earned)
   root.innerHTML = `
     <section class="card">
-      <h2>玖 · 成就 <span class="tag">${earned.size}/${ACHIEVEMENTS.length}</span></h2>
+      <h2>拾 · 成就 <span class="tag">${earned.size}/${ACHIEVEMENTS.length}</span></h2>
       <div class="ach-grid">
         ${ACHIEVEMENTS.map((a) => `<div class="ach-item ${earned.has(a.id) ? 'earned' : ''}" title="${a.desc}">
           <div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('')}
@@ -1056,6 +1085,74 @@ function checkAch() {
 document.addEventListener('handcalc:calcwin', () => {
   state.ach.calcWin = true
   checkAch()
+})
+
+// ---------- 图像模型（像素即序列）----------
+function buildPixel(pat) {
+  const seq = gridToSeq(pat.grid)
+  const cfg = { vocab_size: 2, block_size: 16, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
+  const { params } = createModel(cfg, 42)
+  state.pix = { seq, grid: pat.grid, params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), trained: false }
+  renderGrid($('pixTarget'), pat.grid)
+  renderGrid($('pixOut'), seqToGrid(Array(64).fill(0)))
+  $('pixStage').textContent = '未训练'
+  $('pixGenBtn').disabled = true
+  $('pixInfo').textContent = `图案「${pat.name}」已就绪 · 64 个像素`
+}
+function trainPixel() {
+  const p = state.pix
+  if (!p) return
+  const L = p.seq.length
+  let done = 0
+  const loop = () => {
+    const k = 200
+    for (let i = 0; i < k && done < 2000; i++, done++) {
+      const start = Math.floor(Math.random() * (L - p.cfg.block_size))
+      trainStep(p.params, p.seq.slice(start, start + p.cfg.block_size), p.seq.slice(start + 1, start + p.cfg.block_size + 1), p.cfg, p.opt)
+    }
+    $('pixInfo').textContent = `训练中… ${done}/2000`
+    if (done < 2000) requestAnimationFrame(loop)
+    else { p.trained = true; $('pixGenBtn').disabled = false; $('pixStage').textContent = '已学会'; $('pixInfo').textContent = '训练完成，点「生成」看它画' }
+  }
+  loop()
+}
+function genPixel() {
+  const p = state.pix
+  if (!p || !p.trained) return
+  const gen = sample(p.params, p.seq.slice(0, 4), 60, p.cfg, { temperature: 0.05 })
+  renderGrid($('pixOut'), seqToGrid(gen.slice(0, 64)))
+}
+document.querySelectorAll('#pixelPick .chip').forEach((b) => {
+  b.addEventListener('click', () => {
+    const pat = PIXEL_PATTERNS.find((x) => x.id === b.dataset.pix)
+    if (pat) buildPixel(pat)
+  })
+})
+$('pixTrainBtn').addEventListener('click', trainPixel)
+$('pixGenBtn').addEventListener('click', genPixel)
+buildPixel(PIXEL_PATTERNS[0])
+
+// ---------- 语音演示（Web Audio：让模型"朗读"）----------
+let audioCtx = null
+$('speakBtn').addEventListener('click', () => {
+  const text = $('corpus').value.slice(0, 120)
+  if (!text) { alert('先选择或输入语料'); return }
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  audioCtx.resume()
+  const t0 = audioCtx.currentTime
+  const dur = 0.05
+  text.split('').forEach((ch, i) => {
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.type = 'triangle'
+    osc.frequency.value = 200 + (ch.charCodeAt(0) % 40) * 16
+    gain.gain.setValueAtTime(0.12, t0 + i * dur)
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + (i + 1) * dur)
+    osc.connect(gain).connect(audioCtx.destination)
+    osc.start(t0 + i * dur)
+    osc.stop(t0 + (i + 1) * dur)
+  })
+  $('speakInfo').textContent = `正在朗读前 ${text.length} 个字符（每个字符一个音高）`
 })
 
 // ---------- 启动 ----------
