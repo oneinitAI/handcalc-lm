@@ -119,9 +119,10 @@ app.innerHTML = `
         <div class="viz">
           <div class="viz-title">loss 曲线 <span class="tag" id="lossTag">—</span></div>
           <canvas id="lossChart" class="canvas"></canvas>
+          <div id="lossLog" class="loss-log"></div>
         </div>
         <div class="viz">
-          <div class="viz-title">权重热力图 <span class="tag">wte（词向量表）</span></div>
+          <div class="viz-title">参数热力图 <span class="tag"><select id="hmMode" class="inline-select"><option value="w">权重</option><option value="g">梯度</option></select></span></div>
           <canvas id="heatmap" class="canvas"></canvas>
         </div>
       </div>
@@ -185,6 +186,7 @@ app.innerHTML = `
         </div>
       </details>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
+      <div id="probBar" class="prob-bar"></div>
       <div class="muted" id="perf"></div>
       <div id="genHistory" class="gen-history"></div>
       <div class="viz">
@@ -235,6 +237,14 @@ const attnHeatmap = createAttnHeatmap($('attnHeatmap'), 16)
 $('attnHeatmap').addEventListener('mousemove', (e) => { attnHeatmap.onHover(e); attnHeatmap.draw() })
 $('attnHeatmap').addEventListener('mouseleave', () => attnHeatmap.draw())
 
+// 热力图切换（权重/梯度）
+$('hmMode').addEventListener('change', () => {
+  if (!state.model) return
+  const m = $('hmMode').value === 'g' ? state.model.params.wte.grad : state.model.params.wte.value
+  heatmap.set(m, $('hmMode').value === 'g' ? 'wte 梯度' : 'wte 权重')
+  heatmap.draw()
+})
+
 // 缩放修复：窗口/布局变化时重绘所有 canvas（避免画布拉伸错位）
 let resizeTimer = null
 window.addEventListener('resize', () => {
@@ -270,7 +280,8 @@ function buildModel() {
   $('cmpBtn').disabled = true
   $('cmpBtn').textContent = '切到：微调前'
   lossChart.clear()
-  heatmap.set(params.wte.value, 'wte')
+  const hm = $('hmMode').value === 'g' ? params.wte.grad : params.wte.value
+  heatmap.set(hm, $('hmMode').value === 'g' ? 'wte 梯度' : 'wte 权重')
   heatmap.draw()
   $('modelInfo').textContent = `${chars.length} token（含角色标记）· ${paramCount(params)} 参数 · ${cfg.n_layer}层${cfg.n_head}头${cfg.n_embd}维`
   $('genBtn').disabled = false
@@ -305,7 +316,14 @@ function runSteps(n) {
     state.initLoss = s / 10
   }
   lossChart.push(state.losses[state.losses.length - 1])
-  if (state.losses.length % 50 === 0) heatmap.draw()
+  if (state.losses.length % 50 === 0) {
+    const hm = $('hmMode').value === 'g' ? model.params.wte.grad : model.params.wte.value
+    heatmap.set(hm, $('hmMode').value === 'g' ? 'wte 梯度' : 'wte 权重')
+    heatmap.draw()
+  }
+  // 训练日志（loss 数字序列）
+  const ll = $('lossLog')
+  if (ll) ll.textContent = 'loss 序列：' + state.losses.slice(-12).map((v) => v.toFixed(2)).join(' → ')
   updateProgress()
   checkStop()
 }
@@ -736,12 +754,13 @@ $('genBtn').addEventListener('click', () => {
     const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
     const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1 }
     const t0 = performance.now()
-    const { seq, attnSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, sampOpts)
+    const { seq, attnSteps, probsSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, sampOpts)
     const msPerTok = (performance.now() - t0) / Math.max(1, attnSteps.length)
     $('perf').textContent = `${msPerTok.toFixed(1)} ms/token · ${(1000 / msPerTok).toFixed(0)} tokens/s · ${paramCount(state.model.params)} 参数`
     const win = seq.slice(0, Math.min(seq.length, state.model.cfg.block_size))
     attnHeatmap.setContext(win.map((i) => state.model.itos[i]))
     attnHeatmap.clear()
+    $('probBar').innerHTML = ''
     out.textContent = prompt
     let i = prompt.length
     let stepIdx = 0
@@ -753,6 +772,11 @@ $('genBtn').addEventListener('click', () => {
         if (stepIdx < attnSteps.length) {
           attnHeatmap.pushStep(isMark ? '·' : tok, attnSteps[stepIdx])
           attnHeatmap.draw()
+          // 候选概率分布（top3，可读性：每个候选字概率多少）
+          if (probsSteps[stepIdx]) {
+            const top = probsSteps[stepIdx].map((v, idx) => [v, idx]).sort((a, b) => b[0] - a[0]).slice(0, 3)
+            $('probBar').innerHTML = top.map(([v, idx]) => `<span class="pb-item"><b>${state.model.itos[idx]}</b>${(v * 100).toFixed(0)}%</span>`).join('')
+          }
           stepIdx++
         }
         i++

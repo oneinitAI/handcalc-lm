@@ -16,6 +16,7 @@ import { sampleProbs, sampleFrom } from './sample.js'
 export function sampleWithAttn(params, idx, maxNewTokens, cfg, opts = {}) {
   const seq = idx.slice()
   const attnSteps = []
+  const probsSteps = []
 
   for (let i = 0; i < maxNewTokens; i++) {
     const ctx = seq.length > cfg.block_size ? seq.slice(-cfg.block_size) : seq
@@ -37,7 +38,8 @@ export function sampleWithAttn(params, idx, maxNewTokens, cfg, opts = {}) {
 
     // 采样下一个 token（复用统一采样核心，支持 topK/topP）
     const probs = sampleProbs(logits[logits.length - 1], opts)
+    probsSteps.push(probs)
     seq.push(sampleFrom(probs))
   }
-  return { seq, attnSteps }
+  return { seq, attnSteps, probsSteps }
 }

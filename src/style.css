@@ -217,6 +217,12 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 .vocab-label { color: var(--ink-soft); margin-right: 6px; }
 .vocab-char { display: inline-block; border: 1px solid var(--line); border-radius: 3px; padding: 0 6px; margin: 1px; background: #fffdf6; }
 
+.loss-log { font-size: 11px; font-family: var(--mono); color: var(--ink-faint); margin-top: 4px; word-break: break-all; }
+.inline-select { font-family: var(--serif); font-size: 12px; border: 1px solid var(--line); background: #fffdf6; border-radius: 2px; padding: 1px 4px; color: var(--ink); }
+.prob-bar { font-size: 13px; margin-top: 8px; min-height: 20px; }
+.pb-item { margin-right: 14px; }
+.pb-item b { color: var(--accent); margin-right: 3px; }
+
 /* ===== 可视化面板 ===== */
 .viz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
 .viz {
