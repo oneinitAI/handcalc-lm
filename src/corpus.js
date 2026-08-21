@@ -21,9 +21,22 @@ export const CORPUS = [
   },
 ]
 
-/** 从文本构建字符表：返回 { chars, stoi, itos, vocab } */
+// 特殊角色标记（SFT 用），用控制字符避免与正文冲突
+export const USER = '\u0001'
+export const ASSISTANT = '\u0002'
+export const END = '\u0003'
+export const SPECIAL = [USER, ASSISTANT, END]
+export const TOKEN_NAME = { [USER]: '<u>', [ASSISTANT]: '<a>', [END]: '<e>' }
+
+/** 从文本构建字符表（vocab 固定预留特殊 token 在前） */
 export function buildVocab(text) {
   const chars = [...new Set(text.split(''))].sort()
-  const stoi = Object.fromEntries(chars.map((c, i) => [c, i]))
-  return { chars, stoi, itos: chars, vocab: chars.length }
+  const all = [...SPECIAL, ...chars]
+  const stoi = Object.fromEntries(all.map((c, i) => [c, i]))
+  return { chars: all, stoi, itos: all, vocab: all.length }
+}
+
+/** token 序列转可读文本（特殊 token 显示为 <u>/<a>/<e>） */
+export function tokensToText(itos, ids) {
+  return ids.map((i) => TOKEN_NAME[itos[i]] ?? itos[i]).join('')
 }

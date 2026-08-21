@@ -4,11 +4,12 @@
 // ============================================================
 
 import './style.css'
-import { CORPUS, buildVocab } from './corpus.js'
+import { CORPUS, buildVocab, tokensToText } from './corpus.js'
 import { createModel, paramCount } from './model.js'
 import { trainStep, createOptimizer } from './train.js'
 import { sample } from './sample.js'
 import { createLossChart, createHeatmap } from './ui.js'
+import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 
 const SIZES = {
   tiny:   { n_layer: 1, n_head: 1, n_embd: 8,  block_size: 8 },
@@ -23,6 +24,9 @@ const state = {
   losses: [],
   training: false,
   rafId: null,
+  mode: 'cont', // 'cont' 续写 | 'qa' 问答
+  snap: null,   // 权重快照（微调前，用于对比）
+  sftData: null,
 }
 
 // ---------- DOM ----------
@@ -74,14 +78,34 @@ app.innerHTML = `
     </section>
 
     <section class="card">
-      <h2>叁 · 生成</h2>
+      <h2>叁 · 微调（SFT）</h2>
+      <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。</p>
+      <div class="corpus-pick">
+        <button id="loadQaBtn" class="chip">载入示例问答</button>
+        <span class="hint">每行一条「问题 / 回答」，斜杠分隔</span>
+      </div>
+      <textarea id="qaList" rows="4"></textarea>
+      <div class="row">
+        <button id="sftBtn" class="btn">开始微调</button>
+        <button id="snapBtn" class="btn ghost">记快照（微调前）</button>
+        <button id="cmpBtn" class="btn ghost" disabled>切到：微调前</button>
+      </div>
+      <p class="muted" id="sftInfo"></p>
+    </section>
+
+    <section class="card">
+      <h2>肆 · 生成</h2>
+      <div class="corpus-pick">
+        <button id="modeCont" class="chip on">续写模式</button>
+        <button id="modeQa" class="chip">问答模式</button>
+      </div>
       <div class="row">
         <input id="prompt" value="月光" size="14">
         <button id="genBtn" class="btn" disabled>生成</button>
         <label>温度 <input id="temp" value="0.8" size="4"></label>
         <label>长度 <input id="len" value="32" size="4"></label>
       </div>
-      <div id="genOut" class="gen">（先训练，再让它续写）</div>
+      <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
     </section>
   </main>
 `
@@ -102,11 +126,17 @@ function buildModel() {
   const { params } = createModel(cfg, 42)
   state.model = { params, cfg, stoi, itos, chars }
   state.opt = createOptimizer(params, { type: 'adam', lr: parseFloat($('lr').value) })
+  state.ids = text.split('')
   state.losses = []
+  state.sftData = null
+  state.snap = null
+  state.showingBefore = false
+  $('cmpBtn').disabled = true
+  $('cmpBtn').textContent = '切到：微调前'
   lossChart.clear()
   heatmap.set(params.wte.value, 'wte')
   heatmap.draw()
-  $('modelInfo').textContent = `${chars.length} 字符 · ${paramCount(params)} 参数 · ${cfg.n_layer}层${cfg.n_head}头${cfg.n_embd}维`
+  $('modelInfo').textContent = `${chars.length} token（含角色标记）· ${paramCount(params)} 参数 · ${cfg.n_layer}层${cfg.n_head}头${cfg.n_embd}维`
   $('genBtn').disabled = false
   return true
 }
@@ -114,7 +144,7 @@ function buildModel() {
 // ---------- 训练 ----------
 function runSteps(n) {
   const { model, opt } = state
-  const ids = $('corpus').value.split('')
+  const ids = state.ids // 预训练=语料字符，微调=带标记的问答序列
   const L = ids.length
   for (let k = 0; k < n; k++) {
     const i = Math.floor(Math.random() * Math.max(1, L - model.cfg.block_size - 1))
@@ -168,6 +198,74 @@ $('resetBtn').addEventListener('click', () => {
   lossChart.draw()
 })
 
+// ---------- SFT 微调 ----------
+function deepCopy(v) { return JSON.parse(JSON.stringify(v)) }
+
+function parseQA() {
+  const lines = $('qaList').value.split('\n').map((l) => l.trim()).filter(Boolean)
+  const pairs = []
+  for (const line of lines) {
+    const i = line.indexOf('/')
+    if (i > 0) pairs.push({ q: line.slice(0, i).trim(), a: line.slice(i + 1).trim() })
+  }
+  return pairs
+}
+
+function buildSft() {
+  const pairs = parseQA()
+  if (!pairs.length) { alert('请输入问答对（每行「问题 / 回答」，斜杠分隔）'); return false }
+  const formatted = formatPairs(pairs)
+  const added = extendVocab(state.model, formatted, state.opt) // 问答对新字符扩展 vocab + 优化器
+  state.ids = formatted.split('')
+  state.sftData = { pairs }
+  $('modelInfo').textContent = `${state.model.itos.length} token（含角色标记）· 微调新增 ${added} 字符`
+  $('sftInfo').textContent = `${pairs.length} 条问答对 · 训练序列 ${state.ids.length} token`
+  return true
+}
+
+function snapshotWeights() {
+  state.snap = deepCopy(state.model.params.value)
+  state.showingBefore = false
+  $('cmpBtn').disabled = false
+  $('cmpBtn').textContent = '切到：微调前'
+  $('sftInfo').textContent = '已记录微调前权重快照'
+}
+
+function toggleCompare() {
+  if (!state.snap) return
+  const cur = state.model.params.value
+  const tmp = deepCopy(cur)
+  for (const key in cur) cur[key] = deepCopy(state.snap[key])
+  state.snap = tmp
+  state.showingBefore = !state.showingBefore
+  $('cmpBtn').textContent = state.showingBefore ? '切到：微调后' : '切到：微调前'
+  heatmap.draw()
+}
+
+function setMode(m) {
+  state.mode = m
+  $('modeCont').classList.toggle('on', m === 'cont')
+  $('modeQa').classList.toggle('on', m === 'qa')
+  $('prompt').value = m === 'qa' ? '你是谁' : '月光'
+  $('genOut').textContent = m === 'qa' ? '（问答模式：输入问题，模型试着回答）' : '（先训练，再让它续写）'
+}
+
+$('loadQaBtn').addEventListener('click', () => {
+  $('qaList').value = DEFAULT_QA.map((p) => `${p.q} / ${p.a}`).join('\n')
+})
+$('sftBtn').addEventListener('click', () => {
+  if (!state.model) buildModel()
+  if (!state.model) return
+  if (!buildSft()) return
+  state.losses = []
+  lossChart.clear()
+  startTraining()
+})
+$('snapBtn').addEventListener('click', () => { if (state.model) snapshotWeights() })
+$('cmpBtn').addEventListener('click', toggleCompare)
+$('modeCont').addEventListener('click', () => setMode('cont'))
+$('modeQa').addEventListener('click', () => setMode('qa'))
+
 // ---------- 语料选择 ----------
 function setCorpus(text, title) {
   $('corpus').value = text
@@ -194,23 +292,43 @@ let genTimer = null
 $('genBtn').addEventListener('click', () => {
   if (!state.model) return
   if (genTimer) { clearInterval(genTimer); genTimer = null }
-  const prompt = $('prompt').value
   const temp = parseFloat($('temp').value) || 1
   const len = parseInt($('len').value) || 32
-  const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
-  const seq = sample(state.model.params, p, len, state.model.cfg, { temperature: temp })
   const out = $('genOut')
-  out.textContent = prompt
-  let i = prompt.length
-  genTimer = setInterval(() => {
-    if (i < seq.length) {
-      out.textContent += state.model.itos[seq[i]]
-      i++
-    } else {
-      clearInterval(genTimer)
-      genTimer = null
-    }
-  }, 60)
+
+  if (state.mode === 'qa') {
+    // 问答模式：<u>问题<a> → 模型生成回答
+    const q = $('prompt').value.trim() || '你是谁'
+    const p = qaPrompt(state.model.stoi, q)
+    const seq = sample(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const text = tokensToText(state.model.itos, seq)
+    const aIdx = text.indexOf('<a>')
+    let answer = aIdx >= 0 ? text.slice(aIdx + 3) : text
+    const eIdx = answer.indexOf('<e>')
+    if (eIdx >= 0) answer = answer.slice(0, eIdx)
+    out.textContent = '答：'
+    let i = 0
+    genTimer = setInterval(() => {
+      if (i < answer.length) { out.textContent += answer[i]; i++ }
+      else { clearInterval(genTimer); genTimer = null }
+    }, 40)
+  } else {
+    // 续写模式
+    const prompt = $('prompt').value
+    const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
+    const seq = sample(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    out.textContent = prompt
+    let i = prompt.length
+    genTimer = setInterval(() => {
+      if (i < seq.length) {
+        out.textContent += state.model.itos[seq[i]]
+        i++
+      } else {
+        clearInterval(genTimer)
+        genTimer = null
+      }
+    }, 60)
+  }
 })
 
 // ---------- 启动 ----------
