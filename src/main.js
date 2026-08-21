@@ -13,6 +13,7 @@ import { sampleWithAttn } from './attn.js'
 import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
 import { GLOSSARY, FAQ } from './glossary.js'
+import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -45,6 +46,18 @@ const state = {
   stopNotified: false, // 自动停止提示标志
   genHistory: [],   // 生成历史（内容积累）
   egg50: false,     // 欧拉彩蛋触发标志
+  ach: {
+    earned: loadEarned(),
+    totalSteps: 0,
+    learnedOnce: false,
+    crashedOnce: false,
+    hotOnce: false,
+    coldOnce: false,
+    blindWin: false,
+    calcWin: false,
+    snapOnce: false,
+    allDone: false,
+  },
   corpusIds: null,  // 语料字符数组（预训练数据源）
   sftSeq: null,     // 问答对训练序列（微调数据源，存在则混合训练）
   mixRatio: 0.5,    // 微调时问答数据占比（0=纯语料，1=纯问答）
@@ -79,6 +92,10 @@ app.innerHTML = `
       <div class="corpus-pick">
         ${CORPUS.map((c) => `<button class="chip" data-id="${c.id}">${c.title}</button>`).join('')}
         <span class="hint">或直接粘贴你的文本 ↓</span>
+      </div>
+      <div class="corpus-pick">
+        <button id="corpusRandom" class="chip">随机乱文（实验）</button>
+        <button id="corpusDouble" class="chip">语料 ×2（实验）</button>
       </div>
       <textarea id="corpus" rows="4"></textarea>
       <p class="muted" id="corpusInfo"></p>
@@ -192,9 +209,27 @@ app.innerHTML = `
           <span class="hint">1=关 · 保留累计概率达 p 的候选</span>
         </div>
       </details>
+      <details class="advanced">
+        <summary>温度对决赛（同一开头 · 三种温度）</summary>
+        <p class="muted">同一个开头，用 0.2（稳）/ 0.8（正常）/ 1.5（冒险）各生成一次——感受温度如何改变模型的"性格"。</p>
+        <div class="row">
+          <input id="duelPrompt" value="月光" size="14">
+          <button id="duelBtn" class="btn ghost">开赛</button>
+        </div>
+        <div id="duelResult"></div>
+      </details>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
       <div id="probBar" class="prob-bar"></div>
       <div class="muted" id="perf"></div>
+      <details class="advanced">
+        <summary>🪞 人机接力（你和模型轮流写）</summary>
+        <p class="muted">你写一句，点"模型接一句"，它续到句号——然后你继续写，轮流创作。</p>
+        <div class="row">
+          <button id="relayBtn" class="btn ghost">模型接一句</button>
+          <button id="relayReset" class="btn ghost">清空重来</button>
+        </div>
+        <textarea id="relayText" rows="3">月光</textarea>
+      </details>
       <div id="genHistory" class="gen-history"></div>
       <div class="viz">
         <div class="viz-title">Attention 直播 <span class="tag">模型在"看"哪些字</span></div>
@@ -234,6 +269,8 @@ app.innerHTML = `
     <div id="microscopeRoot"></div>
 
     <div id="glossaryRoot"></div>
+
+    <div id="achRoot"></div>
   </main>
 `
 
@@ -334,6 +371,15 @@ function runSteps(n) {
   // 训练日志（loss 数字序列）
   const ll = $('lossLog')
   if (ll) ll.textContent = 'loss 序列：' + state.losses.slice(-12).map((v) => v.toFixed(2)).join(' → ')
+  // 成就：累计步数 + 训崩检测（loss 曾下降后飙升到初始 1.3 倍）
+  state.ach.totalSteps += n
+  if (!state.ach.crashedOnce && state.initLoss && state.ach.totalSteps > 100) {
+    const cur = state.losses[state.losses.length - 1]
+    if (cur > state.initLoss * 1.3 && state.losses[Math.max(0, state.losses.length - 50)] < state.initLoss) {
+      state.ach.crashedOnce = true
+    }
+  }
+  checkAch()
   updateProgress()
   checkStop()
 }
@@ -361,6 +407,8 @@ function checkStop() {
   const cur = state.losses[L - 1]
   if (cur <= state.initLoss * 0.25) {
     state.stopNotified = true
+    state.ach.learnedOnce = true
+    checkAch()
     stopTraining()
     $('modelInfo').textContent = '✅ 模型已基本学会语料规律（loss 降到初始 25%），去「肆」试试让它续写吧。'
     return
@@ -431,6 +479,8 @@ function saveSnapshot() {
     snaps.push(data)
     const kept = snaps.slice(-3) // 保留最近 3 个
     localStorage.setItem('handcalc:snaps', JSON.stringify(kept))
+    state.ach.snapOnce = true
+    checkAch()
     $('modelInfo').textContent = `✅ 快照已存（共 ${kept.length} 个，浏览器本地）`
   } catch (e) {
     $('modelInfo').textContent = '⚠️ 模型太大，快照存不下（localStorage 容量限制）'
@@ -456,6 +506,19 @@ function loadSnapshot() {
 }
 $('snapSaveBtn').addEventListener('click', saveSnapshot)
 $('snapLoadBtn').addEventListener('click', loadSnapshot)
+
+// 语料实验（玩法）：随机乱文 / 语料拼接
+$('corpusRandom').addEventListener('click', () => {
+  const base = $('corpus').value || '月光'
+  const chars = [...new Set(base.split(''))]
+  let s = ''
+  for (let i = 0; i < 200; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  setCorpus(s, '随机乱文实验')
+})
+$('corpusDouble').addEventListener('click', () => {
+  const t = $('corpus').value
+  if (t) setCorpus(t + t.slice(0, Math.floor(t.length / 2)), '语料拼接')
+})
 
 // ---------- SFT 微调 ----------
 function deepCopy(v) { return JSON.parse(JSON.stringify(v)) }
@@ -610,6 +673,8 @@ $('dpoBtn').addEventListener('click', () => {
       $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 下方盲测已解锁：猜猜哪个是对齐后的模型`
       heatmap.draw()
       // 彩蛋：手算者印（三阶段全部完成）
+      state.ach.allDone = true
+      checkAch()
       if (!document.querySelector('.stamp')) {
         const stamp = document.createElement('div')
         stamp.className = 'stamp'
@@ -688,6 +753,7 @@ function blindGenerate() {
 function blindGuess(guessIsA) {
   const correct = state.blind.correctIsA === guessIsA
   const real = state.blind.correctIsA ? state.blind.a : state.blind.b
+  if (correct) { state.ach.blindWin = true; checkAch() }
   $('blindResult').textContent = (correct ? '✅ 猜对了！' : '❌ 猜错了。') +
     ` 对齐后的回答是「${real}」。${correct ? '你已经能分辨模型的"性格"了。' : '再感受一下两者的差别。'}`
 }
@@ -728,6 +794,34 @@ function renderHistory() {
     state.genHistory.slice(-5).reverse().map((g) =>
       `<div class="gen-history-item"><span class="gh-prompt">${g.prompt}</span>${g.text}</div>`).join('')
 }
+// 人机接力（玩法）：模型续写到句号
+$('relayBtn').addEventListener('click', () => {
+  if (!state.model) { alert('先构建模型并训练'); return }
+  const t = $('relayText').value.trim()
+  if (!t) return
+  const ids = t.split('').map((c) => state.model.stoi[c] ?? 0)
+  const seq = sample(state.model.params, ids, 40, state.model.cfg, { temperature: 0.8 })
+  const gen = seq.slice(ids.length).map((i) => state.model.itos[i]).join('')
+  const stop = gen.search(/[。！？!?，,]/)
+  const sentence = stop >= 0 ? gen.slice(0, stop + 1) : gen
+  $('relayText').value = t + sentence
+  $('relayText').focus()
+})
+$('relayReset').addEventListener('click', () => { $('relayText').value = '月光' })
+
+// 温度对决赛：同一 prompt 三个温度并排生成（玩法）
+$('duelBtn').addEventListener('click', () => {
+  if (!state.model) { alert('先构建模型并训练'); return }
+  const p = $('duelPrompt').value
+  const ids = p.split('').map((c) => state.model.stoi[c] ?? 0)
+  const temps = [[0.2, '稳'], [0.8, '正常'], [1.5, '冒险']]
+  $('duelResult').innerHTML = '<div class="pair">' + temps.map(([t, label]) => {
+    const seq = sample(state.model.params, ids, 24, state.model.cfg, { temperature: t })
+    const text = tokensToText(state.model.itos, seq)
+    return `<div class="answer"><div class="ans-text"><span class="tag">${label} · 温度 ${t}</span><br>${text}</div></div>`
+  }).join('') + '</div>'
+})
+
 // 示例 prompt 按钮
 document.querySelectorAll('#promptEx .chip').forEach((b) => {
   b.addEventListener('click', () => {
@@ -753,6 +847,10 @@ $('genBtn').addEventListener('click', () => {
   if (genTimer) { clearInterval(genTimer); genTimer = null }
   const temp = parseFloat($('temp').value) || 1
   const len = parseInt($('len').value) || 32
+  // 成就：温度探索
+  if (temp >= 1.4) state.ach.hotOnce = true
+  if (temp <= 0.15) state.ach.coldOnce = true
+  checkAch()
   const out = $('genOut')
 
   if (state.mode === 'qa') {
@@ -854,7 +952,57 @@ function renderGlossary() {
   `
 }
 
+// ---------- 成就系统（玩法：集徽章）----------
+function renderAch() {
+  const root = $('achRoot')
+  if (!root) return
+  const earned = new Set(state.ach.earned)
+  root.innerHTML = `
+    <section class="card">
+      <h2>玖 · 成就 <span class="tag">${earned.size}/${ACHIEVEMENTS.length}</span></h2>
+      <div class="ach-grid">
+        ${ACHIEVEMENTS.map((a) => `<div class="ach-item ${earned.has(a.id) ? 'earned' : ''}" title="${a.desc}">
+          <div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('')}
+      </div>
+    </section>
+  `
+}
+
+function unlockAch(id) {
+  const a = ACHIEVEMENTS.find((x) => x.id === id)
+  if (!a || state.ach.earned.includes(id)) return
+  state.ach.earned.push(id)
+  saveEarned(state.ach.earned)
+  renderAch()
+  const t = document.createElement('div')
+  t.className = 'ach-toast'
+  t.textContent = `解锁成就：${a.name} — ${a.desc}`
+  document.body.appendChild(t)
+  setTimeout(() => t.remove(), 3200)
+}
+
+function checkAch() {
+  const s = state.ach
+  if (s.totalSteps >= 100) unlockAch('first')
+  if (s.learnedOnce) unlockAch('learned')
+  if (s.crashedOnce) unlockAch('crash')
+  if (s.hotOnce) unlockAch('hot')
+  if (s.coldOnce) unlockAch('cold')
+  if (s.blindWin) unlockAch('blind')
+  if (s.calcWin) unlockAch('calc')
+  if (state.genCount >= 10) unlockAch('gen10')
+  if (s.snapOnce) unlockAch('snap')
+  if (state.stage === 'dpo' && s.allDone) unlockAch('all')
+}
+
+// 显微镜手算答对 → 成就
+document.addEventListener('handcalc:calcwin', () => {
+  state.ach.calcWin = true
+  checkAch()
+})
+
 // ---------- 启动 ----------
+renderAch()
 renderGlossary()
 initNotes()
 initMicroscopeUI($('microscopeRoot'), () => state.model)

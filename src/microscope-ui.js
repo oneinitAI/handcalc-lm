@@ -135,6 +135,7 @@ export function initMicroscopeUI(root, getModel) {
       const v = parseFloat(ans.value)
       if (isNaN(v)) { res.textContent = '请输入数字'; return }
       const ok = Math.abs(v - target) < 0.05
+      if (ok) document.dispatchEvent(new CustomEvent('handcalc:calcwin'))
       res.textContent = ok ? '✅ 算对了！你亲手算出了模型的内部计算。' : `还差一点，答案是 ${target.toFixed(3)}（可跳过）`
     })
     msCalc.querySelector('#msSkip').addEventListener('click', () => {
