@@ -475,6 +475,15 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 .mm-track { font-size: 12px; font-family: var(--mono); line-height: 1.8; color: var(--ink-soft); min-height: 40px; word-break: break-all; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: pre-wrap; word-break: break-all; }
 
+/* 动画词典 */
+.dict-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.dict-item { animation: none; }
+.dict-term { font-size: 15px; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
+.dict-one { font-size: 12.5px; color: var(--ink-soft); margin: 4px 0 8px; font-family: var(--kai); }
+.dict-canvas { width: 100%; height: 110px; display: block; background: #fffdf6; border: 1px solid var(--line); border-radius: 2px; }
+[data-theme="dark"] .dict-canvas { background: #1b1814; }
+@media (max-width: 560px) { .dict-grid { grid-template-columns: 1fr; } }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }

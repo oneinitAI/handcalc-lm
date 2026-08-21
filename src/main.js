@@ -19,6 +19,7 @@ import { PIXEL_PATTERNS, gridToSeq, seqToGrid, renderGrid, attachDrawing, charTo
 import { MELODIES, parseMelody, playMelody, playTone, renderMelody } from './melody.js'
 import { createGradientDescent, createWave } from './animation.js'
 import { initMultiModal } from './mm.js'
+import { initDict } from './dict.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -77,6 +78,7 @@ app.innerHTML = `
       <button class="tab-btn" data-tab="image">图像模型</button>
       <button class="tab-btn" data-tab="voice">语音模型</button>
       <button class="tab-btn" data-tab="multi">多模态</button>
+      <button class="tab-btn" data-tab="dict">词典</button>
     </nav>
     <div id="tab-text" class="tab-panel on">
     <header class="masthead">
@@ -478,6 +480,17 @@ app.innerHTML = `
         </div>
         <div id="mmXOut" class="muted mono"></div>
       </div>
+      <div class="teach">
+        <h3>动手④ 多模态应用与模态标记</h3>
+        <p>真实世界的多模态模型：<b>CLIP</b>（把图和文字对齐到同一向量空间）、<b>Whisper</b>（语音→文字）、<b>GPT-4V</b>（看图+读文+听声）。它们背后都是同一个思路：<b>给不同模态加"标记"，让一个 Transformer 知道自己在处理哪种序列</b>——你刚才训练的混合模型就是这个机制。</p>
+      </div>
+    </div>
+    <div id="tab-dict" class="tab-panel">
+      <div class="teach">
+        <h3>动画词典</h3>
+        <p>每个术语都有<b>动画解释</b>——看动画理解概念，比读定义快十倍。</p>
+      </div>
+      <div id="dictRoot"></div>
     </div>
   </main>
 `
@@ -1614,6 +1627,9 @@ $('gdLr').addEventListener('input', () => { gd.setLr(parseFloat($('gdLr').value)
 
 // 多模态（一个 Transformer 通吃文本+像素+音高）
 initMultiModal({ $, createModel, createOptimizer, trainStep, sample, CORPUS, PIXEL_PATTERNS, MELODIES, gridToSeq, seqToGrid, renderGrid, parseMelody, playMelody, renderMelody, state })
+
+// 动画词典（术语用动画解释）
+initDict($('dictRoot'))
 
 // 卡片 staggered 入场（教学节奏：一张张"翻开"）
 function staggerCards() {
