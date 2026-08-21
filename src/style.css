@@ -569,8 +569,6 @@ textarea, input, select { font-size: 15px; }
 #bg-particles { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 body {
   background:
-    radial-gradient(circle at 20% 10%, rgba(255, 252, 244, 0.6), transparent 45%),
-    radial-gradient(circle at 85% 90%, rgba(190, 160, 110, 0.12), transparent 50%),
     repeating-linear-gradient(0deg, rgba(43, 38, 32, 0.015) 0 1px, transparent 1px 4px),
     repeating-linear-gradient(90deg, rgba(43, 38, 32, 0.015) 0 1px, transparent 1px 4px),
     var(--paper);
@@ -878,6 +876,55 @@ body::before {
 
 /* 阶段条 = 题目序号 */
 .stage-dot { font-family: var(--kai); font-size: 15px; }
+
+/* ============================================================
+ * 手绘感 + 翻书页层
+ * ============================================================ */
+
+/* 按钮：歪歪扭扭的手绘方块（hover 回正） */
+.btn {
+  transform: rotate(-1deg);
+  border-radius: 6px 3px 8px 2px !important;
+}
+.btn:hover:not(:disabled) { transform: rotate(0deg) translateY(-1px); }
+.btn.ghost { transform: rotate(0.8deg); }
+
+/* chip 微歪（不同角度，像随手贴） */
+.chip:nth-child(odd) { transform: rotate(-1.5deg); }
+.chip:nth-child(even) { transform: rotate(1deg); }
+
+/* 章节下划线：手绘斜虚线 */
+.card h2::after {
+  height: 3px;
+  background: repeating-linear-gradient(90deg, rgba(192, 69, 44, 0.6) 0 6px, transparent 6px 10px);
+  transform: skewX(-12deg) rotate(-0.5deg);
+}
+
+/* 分割线：歪斜虚线 */
+.card { border-top: 2px dashed rgba(192, 69, 44, 0.3) !important; }
+
+/* 小字微歪（手写感） */
+.muted, .hint, .tag { display: inline-block; transform: rotate(-0.6deg); }
+.tag { transform: rotate(0.8deg); }
+
+/* ===== 翻书页：tab 切换 ===== */
+.tab-panel.on {
+  animation: pageIn .55s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left center;
+  position: relative;
+}
+@keyframes pageIn {
+  from { opacity: 0.15; transform: perspective(1400px) rotateY(-75deg) translateX(40px); }
+  to { opacity: 1; transform: perspective(1400px) rotateY(0deg) translateX(0); }
+}
+/* 翻页时的纸厚度阴影 */
+.tab-panel.on::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 18px;
+  background: linear-gradient(90deg, rgba(43, 38, 32, 0.1), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
 
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
