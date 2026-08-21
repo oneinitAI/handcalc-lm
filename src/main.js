@@ -85,6 +85,7 @@ app.innerHTML = `
       <span class="stage-arrow">→</span>
       <span id="stageDpo" class="stage-dot">叁 对齐</span>
       <button id="flipBtn" class="btn ghost flip-btn">翻面 · 进阶模式</button>
+      <button id="themeBtn" class="btn ghost">暗色模式</button>
     </div>
 
     <section class="card" id="dataCard">
@@ -232,6 +233,14 @@ app.innerHTML = `
           <button id="relayReset" class="btn ghost" title="清空接力文本，重新开始">清空重来</button>
         </div>
         <textarea id="relayText" rows="3" title="接力文本：你和模型共同创作的草稿，可以直接编辑">月光</textarea>
+      </details>
+      <details class="advanced">
+        <summary>🎭 幻觉探测（问它不知道的）</summary>
+        <p class="muted">下面的问题都不在你的语料里——模型会"一本正经地编造"。这就是大模型的<b>幻觉</b>：它不是在撒谎，它只是不知道，却必须编出最像样的下一个字。</p>
+        <div class="row">
+          <button id="hallBtn" class="btn ghost" title="随机问一个语料外的问题，看模型怎么编">随机探测</button>
+        </div>
+        <div id="hallResult" class="muted"></div>
       </details>
       <div id="genHistory" class="gen-history"></div>
       <div class="viz">
@@ -827,6 +836,25 @@ $('relayBtn').addEventListener('click', () => {
 })
 $('relayReset').addEventListener('click', () => { $('relayText').value = '月光' })
 
+// 幻觉探测（玩法）：问语料外的问题，看模型编造
+const HALL_PROBES = [
+  '太阳系有几颗行星？', '什么是黑洞？', '李白是哪一年去世的？', '人生的意义是什么？',
+  '火星上有生命吗？', '给我讲一个关于龙的故事', '什么是量子纠缠？', '明天会下雨吗？',
+  '第一次世界大战是哪一年开始的？', '为什么天空是蓝色的？',
+]
+$('hallBtn').addEventListener('click', () => {
+  if (!state.model) { alert('先构建模型并训练'); return }
+  const q = HALL_PROBES[Math.floor(Math.random() * HALL_PROBES.length)]
+  const p = qaPrompt(state.model.stoi, q)
+  const seq = sample(state.model.params, p, 30, state.model.cfg, { temperature: 0.8 })
+  const text = tokensToText(state.model.itos, seq)
+  const aIdx = text.indexOf('<a>')
+  let answer = aIdx >= 0 ? text.slice(aIdx + 3) : text
+  const eIdx = answer.indexOf('<e>')
+  if (eIdx >= 0) answer = answer.slice(0, eIdx)
+  $('hallResult').innerHTML = `<b>问：${q}</b><br>答：${answer || '（模型无话可说——它真的不知道）'}<br><span class="hint">它是在编——这些内容从未出现在你的语料里。幻觉 = 模型不知道却必须说。</span>`
+})
+
 // 温度对决赛：同一 prompt 三个温度并排生成（玩法）
 $('duelBtn').addEventListener('click', () => {
   if (!state.model) { alert('先构建模型并训练'); return }
@@ -930,6 +958,20 @@ $('genBtn').addEventListener('click', () => {
       }
     }, 80)
   }
+})
+
+// ---------- 主题切换（暗色/亮色，localStorage 持久化）----------
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t)
+  $('themeBtn').textContent = t === 'dark' ? '亮色模式' : '暗色模式'
+  try { localStorage.setItem('handcalc:theme', t) } catch { /* 忽略 */ }
+}
+let _savedTheme = null
+try { _savedTheme = localStorage.getItem('handcalc:theme') } catch { /* 忽略 */ }
+applyTheme(_savedTheme === 'dark' ? 'dark' : 'light')
+$('themeBtn').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+  applyTheme(cur)
 })
 
 // ---------- 双层讲解（纸张翻面：正面直觉 / 背面公式）----------

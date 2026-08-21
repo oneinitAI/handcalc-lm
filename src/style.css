@@ -24,6 +24,7 @@ body {
   font-family: var(--serif);
   color: var(--ink);
   line-height: 1.85;
+  transition: background-color .3s, color .3s;
   /* 羊皮纸底 + 细腻纸纹 + 隐约尺规网格 */
   background:
     radial-gradient(circle at 20% 10%, rgba(255, 252, 244, 0.65), transparent 45%),
@@ -32,6 +33,43 @@ body {
     repeating-linear-gradient(90deg, rgba(43, 38, 32, 0.012) 0 1px, transparent 1px 4px),
     var(--paper);
 }
+
+/* ===== 暗色模式（深夜手稿） ===== */
+[data-theme="dark"] {
+  --paper: #1b1814;
+  --paper-2: #232019;
+  --ink: #e8e0cf;
+  --ink-soft: #b3a892;
+  --ink-faint: #8a8170;
+  --accent: #d66a4a;
+  --glow: #4fbfae;
+  --line: #3a342a;
+}
+[data-theme="dark"] body {
+  color-scheme: dark;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(90, 80, 60, 0.28), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(120, 90, 50, 0.08), transparent 50%),
+    repeating-linear-gradient(0deg, rgba(232, 224, 207, 0.02) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(232, 224, 207, 0.02) 0 1px, transparent 1px 4px),
+    var(--paper);
+}
+[data-theme="dark"] .btn { background: #3a342a; color: #f5efe0; }
+[data-theme="dark"] .btn:hover:not(:disabled) { background: #4a4236; }
+[data-theme="dark"] .btn.ghost { background: transparent; color: var(--ink); }
+[data-theme="dark"] .canvas { background: #1b1814; }
+[data-theme="dark"] textarea, [data-theme="dark"] input, [data-theme="dark"] select,
+[data-theme="dark"] .ms-calc, [data-theme="dark"] .answer, [data-theme="dark"] .vocab-char,
+[data-theme="dark"] .calc-key, [data-theme="dark"] .ms-table th, [data-theme="dark"] .ms-calc-display {
+  background: #1b1814;
+}
+[data-theme="dark"] .note, [data-theme="dark"] .intro, [data-theme="dark"] .stage-bar, [data-theme="dark"] .howto,
+[data-theme="dark"] .ach-item, [data-theme="dark"] .gloss-item, [data-theme="dark"] .faq-a, [data-theme="dark"] .pref-list {
+  background: rgba(35, 32, 25, 0.65);
+}
+[data-theme="dark"] .gen-history-item { border-color: var(--line); }
+[data-theme="dark"] .progress-track { background: #2e2a22; border-color: var(--line); }
+[data-theme="dark"] .masthead::after { opacity: 0.9; }
 
 .stage {
   max-width: 680px;
