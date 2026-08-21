@@ -331,8 +331,19 @@ app.innerHTML = `
         </div>
       </div>
       <div class="teach">
+        <h3>动手⑤ 图案插值（从 A 渐变成 B）</h3>
+        <p>选两个图案，看像素值平滑过渡——这是"图像空间是连续的"的直接体验。</p>
+        <div class="row">
+          <select id="pixInterA" class="inline-select" title="起始图案"></select>
+          <span class="hint">→</span>
+          <select id="pixInterB" class="inline-select" title="目标图案"></select>
+          <button id="pixInterBtn" class="btn ghost" title="动画播放像素从 A 渐变到 B">开始变形</button>
+        </div>
+        <canvas id="pixInterOut" class="pixel-canvas"></canvas>
+      </div>
+      <div class="teach">
         <h3>动手④ 微调：让它学会"按提示画图"</h3>
-        <p>把多个图案各配一个"提示标记"，一起训练——之后你"告诉"它画哪个，它就画哪个。<b>这就是文生图的雏形</b>（给提示，生成对应图）。</p>
+        <p>把多个图案各配一个"提示标记"一起训练——之后你"告诉"它画哪个，它就画哪个。<b>文生图的雏形</b>。</p>
         <div class="row">
           <button id="pixFTBtn" class="btn" title="用 圆/心形/H 三个图案 + 各自提示标记一起训练">开始微调</button>
           <span class="hint" id="pixFTInfo"></span>
@@ -350,13 +361,15 @@ app.innerHTML = `
       </div>
       <div class="row">
         <label title="图像模型的训练步数。像素序列 256 个，比文本更快学会">步数 <input id="pixSteps" value="2000" size="5"></label>
+        <label title="学习率=参数更新步长。大=学得快但可能震荡">学习率 <input id="pixLr" value="0.05" size="5"></label>
+        <label title="生成温度：低=稳定按学到的画，高=花样多（更有创造力的"手抖"）">温度 <input id="pixTemp" value="0.05" size="4"></label>
         <button id="pixTrainBtn" class="btn" title="用像素序列训练模型（和文本训练同一套代码，看 loss 下降）">开始训练</button>
         <button id="pixGenBtn" class="btn ghost" disabled title="从图案开头的 8 个像素开始生成整幅图（动画逐像素点亮）">生成</button>
         <span class="hint" id="pixInfo"></span>
       </div>
       <div class="viz-row">
         <div class="viz"><div class="viz-title">目标（选图案 / 自己画）</div><canvas id="pixTarget" class="pixel-canvas"></canvas><canvas id="pixBoard" class="pixel-canvas" hidden title="在这里涂画，作为训练数据"></canvas></div>
-        <div class="viz"><div class="viz-title">模型生成 <span class="tag" id="pixStage">未训练</span></div><canvas id="pixOut" class="pixel-canvas"></canvas></div>
+        <div class="viz"><div class="viz-title">模型生成 <span class="tag" id="pixStage">未训练</span></div><canvas id="pixOut" class="pixel-canvas"></canvas><div id="pixHistory" class="gen-history"></div></div>
       </div>
       <div class="viz"><div class="viz-title">loss 曲线（像素版）</div><canvas id="pixLoss" class="canvas"></canvas></div>
       <div class="howto">① 选图案，或点「自己画」在画板上涂一个图形 → ② 开始训练（看 loss 下降）→ ③ 生成，看模型从噪声逐步"画出"它学到的<br>它和文字模型是<b>同一个 Transformer</b>，只是把"字"换成 16 级灰度像素——图像生成模型（扩散模型）的雏形。</div>
@@ -388,6 +401,17 @@ app.innerHTML = `
         <div class="row" id="melFTPick"></div>
         <canvas id="melFTOut" class="canvas"></canvas>
       </div>
+    <div class="teach">
+        <h3>动手④ 旋律插值（从 A 渐变成 B）</h3>
+        <p>选两首旋律，播放"A → 中间渐变 → B"——听旋律空间怎么连续过渡。</p>
+        <div class="row">
+          <select id="melInterA" class="inline-select" title="起始旋律"></select>
+          <span class="hint">→</span>
+          <select id="melInterB" class="inline-select" title="目标旋律"></select>
+          <button id="melInterBtn" class="btn ghost" title="生成并播放：A 的前段 → 中间渐变 → B 的后段">开始变形</button>
+        </div>
+        <canvas id="melInterOut" class="canvas"></canvas>
+      </div>
     <section class="card" id="voiceCard">
       <h2>玖 · 语音模型（旋律序列）</h2>
       <p class="muted">旋律 = <b>一串音高值</b>（简谱 1-7 + 0 休止）。训练它"猜下一个音"——学会后模型能<b>自己续写旋律并演奏</b>。</p>
@@ -396,6 +420,8 @@ app.innerHTML = `
       </div>
       <div class="row">
         <label title="旋律模型的训练步数">步数 <input id="melSteps" value="2000" size="5"></label>
+        <label title="作曲温度：低=规整保守，高=即兴大胆">温度 <input id="melTemp" value="0.6" size="4"></label>
+        <label title="播放速度（BPM，每分钟多少拍）。快=活泼，慢=舒缓">BPM <input id="melBpm" value="220" size="5"></label>
         <button id="melTrainBtn" class="btn" title="用旋律的音高序列训练模型（猜下一个音）">开始训练</button>
         <button id="melGenBtn" class="btn ghost" disabled title="从旋律开头续写一段新旋律——模型作曲">模型作曲</button>
         <button id="melPlayBtn" class="btn ghost" disabled title="播放当前旋律（目标或模型创作）">播放</button>
@@ -407,7 +433,7 @@ app.innerHTML = `
       </div>
       <div class="viz-row">
         <div class="viz"><div class="viz-title">音高阶梯（目标）</div><canvas id="melViz" class="canvas"></canvas></div>
-        <div class="viz"><div class="viz-title">模型续写 <span class="tag" id="melStage">未训练</span></div><canvas id="melGenViz" class="canvas"></canvas></div>
+        <div class="viz"><div class="viz-title">模型续写 <span class="tag" id="melStage">未训练</span></div><canvas id="melGenViz" class="canvas"></canvas><div id="melHistory" class="gen-history"></div></div>
       </div>
       <div class="viz"><div class="viz-title">loss 曲线（旋律版）</div><canvas id="melLoss" class="canvas"></canvas></div>
       <div class="howto">① 选一首旋律（或输入自己的简谱）→ ② 开始训练（看 loss 下降）→ ③ 「模型作曲」续写新旋律 → 「播放」听它创作<br>语音模型和文字模型是<b>同一个架构</b>——真实 TTS/ASR 把声波变成数字（频谱）后，同样是"猜下一个值"。</div>
@@ -1196,7 +1222,7 @@ function buildPixel(pat, customSeq) {
   const grid = customSeq ? seqToGrid(customSeq) : pat.grid
   const cfg = { vocab_size: 16, block_size: 32, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
   const { params } = createModel(cfg, 42)
-  state.pix = { seq, grid, params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), trained: false, losses: [] }
+  state.pix = { seq, grid, params, cfg, opt: createOptimizer(params, { type: 'adam', lr: parseFloat($('pixLr').value) || 0.05 }), trained: false, losses: [], history: [] }
   renderGrid($('pixTarget'), grid)
   renderGrid($('pixOut'), seqToGrid(Array(256).fill(0)))
   pixLossChart.clear()
@@ -1243,8 +1269,22 @@ function trainPixel() {
 function genPixel() {
   const p = state.pix
   if (!p || !p.trained) return
-  const gen = sample(p.params, p.seq.slice(0, 8), 248, p.cfg, { temperature: 0.05 })
+  const temp = parseFloat($('pixTemp').value) || 0.05
+  const gen = sample(p.params, p.seq.slice(0, 8), 248, p.cfg, { temperature: temp })
   const full = gen.slice(0, 256)
+  // 生成历史（最近 3 个，不同温度对比）
+  p.history.push(full.slice())
+  if (p.history.length > 3) p.history.shift()
+  const hist = $('pixHistory')
+  if (hist) {
+    hist.innerHTML = `<div class="gen-history-title">最近生成（温度 ${temp}）</div>`
+    p.history.forEach((g) => {
+      const c = document.createElement('canvas')
+      c.className = 'pixel-canvas mini'
+      hist.appendChild(c)
+      renderGrid(c, seqToGrid(g))
+    })
+  }
   const out = $('pixOut')
   let i = 0
   const anim = setInterval(() => {
@@ -1298,6 +1338,30 @@ function genPixelFT(pi) {
 }
 $('pixFTBtn').addEventListener('click', () => { if (!state.pixFT) buildPixelFT(); trainPixelFT() })
 buildPixelFT()
+
+// 动手：图案插值（从 A 渐变到 B——图像空间连续）
+const pixInterA = $('pixInterA'), pixInterB = $('pixInterB')
+PIXEL_PATTERNS.forEach((pat) => {
+  pixInterA.insertAdjacentHTML('beforeend', `<option value="${pat.id}">${pat.name}</option>`)
+  pixInterB.insertAdjacentHTML('beforeend', `<option value="${pat.id}">${pat.name}</option>`)
+})
+pixInterB.value = PIXEL_PATTERNS[1].id
+$('pixInterBtn').addEventListener('click', () => {
+  const pa = PIXEL_PATTERNS.find((x) => x.id === pixInterA.value)
+  const pb = PIXEL_PATTERNS.find((x) => x.id === pixInterB.value)
+  if (!pa || !pb) return
+  const seqA = gridToSeq(pa.grid)
+  const seqB = gridToSeq(pb.grid)
+  let frame = 0
+  const N = 24
+  const anim = setInterval(() => {
+    frame++
+    const t = frame / N
+    const mix = seqA.map((v, i) => Math.round(v * (1 - t) + seqB[i] * t))
+    renderGrid($('pixInterOut'), seqToGrid(mix))
+    if (frame >= N) clearInterval(anim)
+  }, 50)
+})
 
 // 动手：扩散加噪演示（拖滑杆把图案加噪成雪花）
 $('pixNoise').addEventListener('input', () => {
@@ -1437,17 +1501,55 @@ function trainMelody() {
 function genMelody() {
   const m = state.mel
   if (!m.trained) return
-  const gen = sample(m.params, m.seq.slice(0, 8), 40, m.cfg, { temperature: 0.6 })
+  const temp = parseFloat($('melTemp').value) || 0.6
+  const gen = sample(m.params, m.seq.slice(0, 8), 40, m.cfg, { temperature: temp })
   m.composed = gen.slice(0, 48)
   renderMelody($('melGenViz'), m.composed)
-  $('melInfo').textContent = '模型创作了 48 个音——点「播放」听它写的新旋律'
+  // 生成历史（最近 3 段，不同温度对比）
+  m.history = m.history || []
+  m.history.push(m.composed.slice())
+  if (m.history.length > 3) m.history.shift()
+  const hist = $('melHistory')
+  if (hist) {
+    hist.innerHTML = `<div class="gen-history-title">最近作曲（温度 ${temp}）</div>` +
+      m.history.map((g, gi) => `<button class="chip" data-mh="${gi}" title="播放这段">段 ${gi + 1}</button>`).join('')
+    hist.querySelectorAll('.chip').forEach((b) => {
+      b.addEventListener('click', () => {
+        playMelody(m.history[+b.dataset.mh], parseFloat($('melBpm').value) || 220)
+      })
+    })
+  }
+  $('melInfo').textContent = `模型创作了 48 个音（温度 ${temp}）——点「播放」或历史段落试听`
 }
 $('melPlayBtn').addEventListener('click', () => {
   const m = state.mel
   if (!m) { alert('先选旋律'); return }
   const seq = m.composed || m.seq
-  playMelody(seq)
-  $('melInfo').textContent = `♪ 播放「${m.composed ? '模型创作' : m.name}」…`
+  const bpm = parseFloat($('melBpm').value) || 220
+  playMelody(seq, bpm)
+  $('melInfo').textContent = `♪ 播放「${m.composed ? '模型创作' : m.name}」…（${bpm} BPM）`
+})
+// 动手：旋律插值（A → 渐变 → B）
+const melInterA = $('melInterA'), melInterB = $('melInterB')
+MELODIES.forEach((m) => {
+  melInterA.insertAdjacentHTML('beforeend', `<option value="${m.id}">${m.name}</option>`)
+  melInterB.insertAdjacentHTML('beforeend', `<option value="${m.id}">${m.name}</option>`)
+})
+melInterB.value = MELODIES[1].id
+$('melInterBtn').addEventListener('click', () => {
+  const ma = MELODIES.find((x) => x.id === melInterA.value)
+  const mb = MELODIES.find((x) => x.id === melInterB.value)
+  if (!ma || !mb) return
+  const a = parseMelody(ma.seq)
+  const b = parseMelody(mb.seq)
+  const part = Math.min(a.length, b.length, 10)
+  const mixed = []
+  for (let i = 0; i < part; i++) mixed.push(a[i])
+  for (let i = 0; i < part; i++) mixed.push(Math.round(a[i] * (1 - (i + 1) / part) + b[i] * ((i + 1) / part)))
+  for (let i = 0; i < part; i++) mixed.push(b[i])
+  renderMelody($('melInterOut'), mixed)
+  playMelody(mixed, parseFloat($('melBpm').value) || 220)
+  $('melInfo').textContent = `${ma.name} → 渐变 → ${mb.name}（听中间的过渡旋律）`
 })
 document.querySelectorAll('#melodyPick .chip').forEach((b) => {
   b.addEventListener('click', () => {
