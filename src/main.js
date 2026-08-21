@@ -12,7 +12,7 @@ import { createLossChart, createHeatmap, createAttnHeatmap } from './ui.js'
 import { sampleWithAttn } from './attn.js'
 import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
-import { GLOSSARY, FAQ } from './glossary.js'
+import { FAQ } from './glossary.js'
 import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
@@ -138,7 +138,7 @@ app.innerHTML = `
       </div>
       <div class="viz-row">
         <div class="viz">
-          <div class="viz-title">loss 曲线 <span class="tag" id="lossTag">—</span></div>
+          <div class="viz-title">loss 曲线 <span class="tag" id="lossTag" title="loss=损失，模型猜得有多烂。训练就是让它变小。困惑度=exp(loss)，模型有多迷茫">—</span></div>
           <canvas id="lossChart" class="canvas"></canvas>
           <div id="lossLog" class="loss-log"></div>
         </div>
@@ -151,7 +151,7 @@ app.innerHTML = `
 
     <section class="card" id="sftCard">
       <h2>叁 · 微调（SFT）</h2>
-      <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。</p>
+      <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。<b>SFT = Supervised Fine-Tuning（监督微调）</b>：为什么微调？预训练只会续写，微调换问答数据教它"回答问题"。</p>
       <div class="corpus-pick">
         <select id="qaSet" class="inline-select" title="选择要载入的示例问答套：通用对话 / 关于手算LM / 趣味问答">
           <option value="general">通用对话</option>
@@ -251,7 +251,7 @@ app.innerHTML = `
 
     <section class="card" id="dpoCard">
       <h2>伍 · 偏好对齐（DPO）</h2>
-      <p class="muted">让模型生成两个回答，你告诉它哪个更好——它会学会偏向你的偏好。这就是 DPO（2023 年论文算法），也是 OpenAI 标注员做的真实工作。</p>
+      <p class="muted">让模型生成两个回答，你告诉它哪个更好——它会学会偏向你的偏好。<b>DPO = Direct Preference Optimization（直接偏好优化）</b>：为什么？光会回答不够，还要"答得讨你喜欢"。这是 OpenAI 标注员做的真实工作（2023 年论文算法）。</p>
       <div class="row">
         <input id="dpoQ" value="你好" size="14" title="用来生成两个回答的问题">
         <button id="genPairBtn" class="btn" title="让当前模型用两种不同温度各生成一个回答，供你比较">生成两个回答</button>
@@ -996,17 +996,13 @@ function initNotes() {
   })
 }
 
-// ---------- 术语表 + 常见问题 ----------
+// ---------- 常见问题（就地排查，不用翻术语表）----------
 function renderGlossary() {
   const root = $('glossaryRoot')
   if (!root) return
   root.innerHTML = `
     <section class="card">
-      <h2>柒 · 术语表</h2>
-      <div class="glossary">${GLOSSARY.map((g) => `<div class="gloss-item"><b>${g.term}</b>${g.desc}</div>`).join('')}</div>
-    </section>
-    <section class="card">
-      <h2>捌 · 常见问题</h2>
+      <h2>柒 · 常见问题</h2>
       ${FAQ.map((f) => `<details class="faq"><summary>${f.q}</summary><div class="faq-a">${f.a}</div></details>`).join('')}
     </section>
   `

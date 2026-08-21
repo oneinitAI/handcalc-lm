@@ -57,8 +57,8 @@ export function runMicroscope(params, idx, cfg) {
     lastProb.push(+acc.toFixed(3))
   }
   steps.push({
-    title: '③ 自注意力',
-    desc: '最后一个字对前面每个字做"注意力加权"——权重就是 attention',
+    title: '③ 自注意力（Q/K/V）',
+    desc: '最后一个字对前面每个字做"注意力加权"。Q=查询（我在找什么），K=键（我是什么），V=值（我能给什么）。Q·K 算出关注度 → softmax → 加权 V。',
     attnProb: lastProb,
     attnQ: attn.q[0][T - 1].map((v) => +v.toFixed(3)),
     attnK: attn.k[0].map((row) => row.map((v) => +v.toFixed(3))),
@@ -67,7 +67,7 @@ export function runMicroscope(params, idx, cfg) {
   // ④ 前馈网络 FFN
   steps.push({
     title: '④ 前馈网络 FFN',
-    desc: '对向量做两次线性变换，中间夹 GELU 激活',
+    desc: 'FFN = Feed-Forward Network（前馈网络）：对向量做两次线性变换，中间夹 GELU 激活，相当于"消化"一下注意力拿到的信息。',
     h1: mlp.h1[T - 1].map((v) => +v.toFixed(3)),
     act: mlp.act[T - 1].map((v) => +v.toFixed(3)),
   })
