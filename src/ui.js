@@ -60,16 +60,27 @@ export function createLossChart(canvas) {
       for (const v of losses) { if (v < min) min = v; if (v > max) max = v }
       const range = max - min || 1
       const yTop = pad, yBot = h - 12
-      // 曲线（墨色到朱砂：用朱砂）
+      // 曲线（墨迹渐变：旧段淡墨 → 新段朱砂，模拟墨迹书写）
+      const grad = ctx.createLinearGradient(pad, 0, w - pad, 0)
+      grad.addColorStop(0, 'rgba(43,38,32,0.3)')
+      grad.addColorStop(0.65, 'rgba(179,68,44,0.65)')
+      grad.addColorStop(1, '#b3442c')
       ctx.beginPath()
       for (let i = 0; i < losses.length; i++) {
         const x = pad + (i / (losses.length - 1)) * (w - 2 * pad)
         const y = yBot - ((losses[i] - min) / range) * (yBot - yTop)
         i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
       }
-      ctx.strokeStyle = '#b3442c'
-      ctx.lineWidth = 1.6
+      ctx.strokeStyle = grad
+      ctx.lineWidth = 1.7
       ctx.stroke()
+      // 当前数据点：青磷光光晕（科技反差）
+      const lx = pad + ((losses.length - 1) / (losses.length - 1)) * (w - 2 * pad)
+      const ly = yBot - ((losses[losses.length - 1] - min) / range) * (yBot - yTop)
+      ctx.fillStyle = 'rgba(31,122,109,0.22)'
+      ctx.beginPath(); ctx.arc(lx, ly, 5.5, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#1f7a6d'
+      ctx.beginPath(); ctx.arc(lx, ly, 2.2, 0, Math.PI * 2); ctx.fill()
       // 当前值标签
       ctx.fillStyle = '#b3442c'
       ctx.font = '13px serif'
