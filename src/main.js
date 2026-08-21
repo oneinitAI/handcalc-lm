@@ -4,7 +4,7 @@
 // ============================================================
 
 import './style.css'
-import { CORPUS, buildVocab, tokensToText, USER, ASSISTANT, END } from './corpus.js'
+import { CORPUS, buildVocab, tokensToText, TOKEN_NAME, USER, ASSISTANT, END } from './corpus.js'
 import { createModel, paramCount } from './model.js'
 import { trainStep, createOptimizer } from './train.js'
 import { sample } from './sample.js'
@@ -54,6 +54,12 @@ app.innerHTML = `
       <p class="sub">给你权重，亲手算出它的下一句话</p>
     </header>
 
+    <div class="intro">
+      <p>这里是一个让你<b>亲手训练迷你大模型</b>的实验台——一个只会"猜下一个字"的小机器，在你的浏览器里<b>真实训练</b>，没有任何预设剧本。</p>
+      <p class="intro-path">你的旅程：<b>壹</b> 选语料 · <b>贰</b> 训练它学说话 · <b>叁</b> 微调它会回答 · <b>肆</b> 生成看它想什么 · <b>伍</b> 对齐让它变讨喜 · <b>陆</b> 显微镜看穿每一步</p>
+      <p class="muted">每张卡片下方有「怎么做」指引；右上「翻面」可看背后的公式。</p>
+    </div>
+
     <div class="stage-bar">
       <span id="stagePre" class="stage-dot on">壹 预训练</span>
       <span class="stage-arrow">→</span>
@@ -71,6 +77,7 @@ app.innerHTML = `
       </div>
       <textarea id="corpus" rows="4"></textarea>
       <p class="muted" id="corpusInfo"></p>
+      <div id="vocabView" class="vocab-view"></div>
     </section>
 
     <section class="card" id="modelCard">
@@ -141,6 +148,14 @@ app.innerHTML = `
       <div class="corpus-pick">
         <button id="modeCont" class="chip on">续写模式</button>
         <button id="modeQa" class="chip">问答模式</button>
+      </div>
+      <div class="corpus-pick" id="promptEx">
+        <button class="chip" data-p="月光">月光</button>
+        <button class="chip" data-p="红岸基地">红岸基地</button>
+        <button class="chip" data-p="从明天起">从明天起</button>
+        <button class="chip" data-p="荷叶">荷叶</button>
+        <button class="chip" data-p="黑夜">黑夜</button>
+        <button class="chip" id="promptRandom">从语料随机</button>
       </div>
       <div class="row">
         <input id="prompt" value="月光" size="14">
@@ -245,6 +260,12 @@ function buildModel() {
   heatmap.draw()
   $('modelInfo').textContent = `${chars.length} token（含角色标记）· ${paramCount(params)} 参数 · ${cfg.n_layer}层${cfg.n_head}头${cfg.n_embd}维`
   $('genBtn').disabled = false
+  // 字符表预览（可读性：模型认识哪些字）
+  const vv = $('vocabView')
+  if (vv) {
+    vv.innerHTML = '<span class="vocab-label">模型认识的字符表：</span>' +
+      chars.map((c) => `<span class="vocab-char" title="token #${stoi[c]}">${TOKEN_NAME[c] ?? c}</span>`).join('')
+  }
   return true
 }
 
@@ -283,6 +304,7 @@ function updateProgress() {
   const p = Math.max(0, Math.min(1, (state.initLoss - cur) / (state.initLoss - target)))
   $('progressFill').style.width = (p * 100).toFixed(0) + '%'
   $('progressText').textContent = p >= 1 ? '已学到位' : `已学 ${(p * 100).toFixed(0)}%`
+  $('lossTag').textContent = `loss ${cur.toFixed(3)} · 初始 ${state.initLoss.toFixed(3)}`
 }
 
 /** 自动停止检测：loss 到 25% 或停滞 300 步 */
@@ -293,7 +315,7 @@ function checkStop() {
   if (cur <= state.initLoss * 0.25) {
     state.stopNotified = true
     stopTraining()
-    $('modelInfo').textContent = '✅ 模型已基本学会语料规律（loss 降到初始 25%），可以验收了。也可以继续训练微调。'
+    $('modelInfo').textContent = '✅ 模型已基本学会语料规律（loss 降到初始 25%），去「肆」试试让它续写吧。'
     return
   }
   if (L > 400 && L % 100 === 0) {
@@ -301,7 +323,7 @@ function checkStop() {
     if (before - cur < state.initLoss * 0.01) {
       state.stopNotified = true
       stopTraining()
-      $('modelInfo').textContent = '⏸ loss 已停滞（300 步无明显下降）——可能学到位了，或学习率不合适。可继续或调整参数。'
+      $('modelInfo').textContent = '⏸ loss 已停滞（300 步无明显下降）——去「肆」看看效果，或调参数重训。'
     }
   }
 }
@@ -527,7 +549,7 @@ $('dpoBtn').addEventListener('click', () => {
     if (done >= total) {
       state.stage = 'dpo'
       updateStage()
-      $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 模型已偏向你的偏好`
+      $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 下方盲测已解锁：猜猜哪个是对齐后的模型`
       heatmap.draw()
       // 彩蛋：手算者印（三阶段全部完成）
       if (!document.querySelector('.stamp')) {
@@ -614,7 +636,8 @@ function blindGuess(guessIsA) {
 // ---------- 语料选择 ----------
 function setCorpus(text, title) {
   $('corpus').value = text
-  $('corpusInfo').textContent = `「${title}」 ${text.length} 字`
+  const c = CORPUS.find((x) => x.title === title)
+  $('corpusInfo').innerHTML = c && c.desc ? `<b>${title}</b> · ${text.length} 字 — ${c.desc}` : `「${title}」 ${text.length} 字`
   stopTraining()
   buildModel()
   lossChart.draw()
@@ -634,6 +657,18 @@ $('corpus').addEventListener('input', () => {
 
 // ---------- 流式生成 ----------
 let genTimer = null
+// 示例 prompt 按钮
+document.querySelectorAll('#promptEx .chip').forEach((b) => {
+  b.addEventListener('click', () => {
+    const p = b.dataset.p
+    if (p) { $('prompt').value = p; return }
+    // 随机：从语料随机截一段
+    const t = $('corpus').value
+    if (!t) return
+    const i = Math.floor(Math.random() * Math.max(1, t.length - 8))
+    $('prompt').value = t.slice(i, i + 4 + Math.floor(Math.random() * 4))
+  })
+})
 $('genBtn').addEventListener('click', () => {
   if (!state.model) return
   state.genCount++

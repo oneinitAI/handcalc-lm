@@ -85,6 +85,19 @@ body {
   font-family: var(--kai);
 }
 
+/* 开场白 */
+.intro {
+  margin: 20px 0 4px;
+  padding: 14px 18px;
+  background: rgba(250, 245, 232, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.intro-path { font-size: 13px; color: var(--ink-soft); margin: 6px 0 0; }
+.intro-path b { color: var(--accent); }
+
 /* ===== 阶段进度（手稿"章"） ===== */
 .stage-bar {
   display: flex; align-items: center; gap: 8px;
@@ -198,6 +211,11 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 .chip:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 3px rgba(179, 68, 44, 0.06); }
 .chip.on { border-color: var(--accent); color: var(--accent); background: rgba(179, 68, 44, 0.08); }
 .hint { font-size: 12px; color: var(--ink-faint); }
+
+/* 字符表预览 */
+.vocab-view { margin-top: 8px; font-size: 12px; line-height: 2.1; }
+.vocab-label { color: var(--ink-soft); margin-right: 6px; }
+.vocab-char { display: inline-block; border: 1px solid var(--line); border-radius: 3px; padding: 0 6px; margin: 1px; background: #fffdf6; }
 
 /* ===== 可视化面板 ===== */
 .viz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
