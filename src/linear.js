@@ -54,7 +54,7 @@ export function mlpForward(x, cfg, p, prefix) {
   return { y, cache: { h1, act, x } }
 }
 
-/** MLP 反向：返回 { dx, dW, db }（c_fc 的） */
+/** MLP 反向：返回 c_fc 梯度(dW/db) + c_proj 梯度(dW2/db2) + 输入梯度 dx */
 export function mlpBackward(dy, cache, cfg, p, prefix) {
   const { h1, act, x } = cache
   const back1 = linearBackward(dy, act, p[prefix + 'c_proj.w'].value, cfg.bias ? p[prefix + 'c_proj.b'].value : null)
@@ -64,5 +64,6 @@ export function mlpBackward(dy, cache, cfg, p, prefix) {
     dact[t] = new Array(h1[t].length)
     for (let j = 0; j < h1[t].length; j++) dact[t][j] = back1.dx[t][j] * dgelu(h1[t][j])
   }
-  return linearBackward(dact, x, p[prefix + 'c_fc.w'].value, cfg.bias ? p[prefix + 'c_fc.b'].value : null)
+  const back0 = linearBackward(dact, x, p[prefix + 'c_fc.w'].value, cfg.bias ? p[prefix + 'c_fc.b'].value : null)
+  return { dx: back0.dx, dW: back0.dW, db: back0.db, dW2: back1.dW, db2: back1.db }
 }

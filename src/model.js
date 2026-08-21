@@ -118,7 +118,7 @@ export function forward(params, idx, targets, cfg = defaultCfg) {
     const xAfterAttn = addTensors(xIn, attn.y, nEmb)
 
     const ln2 = layerNormForward(xAfterAttn, p[prefix + 'ln2.w'].value, cfg.bias ? p[prefix + 'ln2.b'].value : zeros(1, nEmb))
-    const mlp = mlpForward(ln2.y, cfg, p, prefix)
+    const mlp = mlpForward(ln2.y, cfg, p, prefix + 'mlp.')
     const xAfterMlp = addTensors(xAfterAttn, mlp.y, nEmb)
 
     blocks.push({ xIn, ln1, attn, xAfterAttn, ln2, mlp, xAfterMlp })

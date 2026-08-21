@@ -97,7 +97,7 @@ export function attentionForward(x, cAttnW, cAttnB, cProjW, cProjB, cfg) {
     }
   }
 
-  return { y, cache: { x, q, k, v, attProbs, merged, nHead, headDim, scale, T, nEmb, cProjW, cProjB } }
+  return { y, cache: { x, q, k, v, attProbs, merged, nHead, headDim, scale, T, nEmb, cProjW, cProjB, cAttnW } }
 }
 
 /**
@@ -105,7 +105,7 @@ export function attentionForward(x, cAttnW, cAttnB, cProjW, cProjB, cfg) {
  * 返回 { dx, dcAttnW, dcAttnB, dcProjW, dcProjB }
  */
 export function attentionBackward(dy, cache) {
-  const { x, q, k, v, attProbs, merged, nHead, headDim, scale, T, nEmb, cProjW, cProjB } = cache
+  const { x, q, k, v, attProbs, merged, nHead, headDim, scale, T, nEmb, cProjW, cProjB, cAttnW } = cache
   const dx = new Array(T)
   for (let t = 0; t < T; t++) dx[t] = new Array(nEmb).fill(0)
   const dcAttnW = zeros(nEmb, 3 * nEmb)
