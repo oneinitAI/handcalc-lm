@@ -573,6 +573,9 @@ function wireUp() {
   replace('input[type="range"]', 'wired-slider', (w, el) => {
     w.value = el.value; w.min = el.min; w.max = el.max; w.step = el.step
     if (el.title) w.setAttribute('title', el.title)
+    // wired-slider 内部 input 的 input 事件被 stopPropagation 截断，
+    // 但它 fire 的 change 事件是 composed+bubbles，会冒泡到宿主，这里转发为 input
+    w.addEventListener('change', () => { w.dispatchEvent(new Event('input', { bubbles: true })) })
   })
   replace('select', 'wired-select', (w, el) => {
     w.innerHTML = el.innerHTML
@@ -588,6 +591,39 @@ function wireUp() {
     if (el.size) w.setAttribute('size', el.size)
     if (el.title) w.setAttribute('title', el.title)
   })
+  // wired-button：shadow DOM 内 button 的 click 不保证冒泡到宿主，手动桥接（stopPropagation 防双触发）
+  document.querySelectorAll('wired-button').forEach((w) => {
+    if (w.shadowRoot) {
+      const btn = w.shadowRoot.querySelector('button')
+      if (btn && !btn.__wiredBridged) {
+        btn.__wiredBridged = true
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          w.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, clientX: e.clientX, clientY: e.clientY }))
+        })
+      }
+    }
+  })
+  tintWiredInputs()
+}
+
+// wired-input/textarea/select 内部输入元素默认白底（组件不带背景样式），穿透 shadow 设透明 + 主题色
+function tintWiredInputs() {
+  const tint = () => {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const ink = dark ? '#ece6da' : '#2f2a24'
+    document.querySelectorAll('wired-input,wired-textarea,wired-select').forEach((w) => {
+      if (!w.shadowRoot) return
+      const el = w.shadowRoot.querySelector('input,textarea,select')
+      if (el) {
+        el.style.background = 'transparent'
+        el.style.color = ink
+        el.style.caretColor = ink
+      }
+    })
+  }
+  tint()
+  requestAnimationFrame(tint) // lit 异步渲染后再补一次
 }
 wireUp()
 const lossChart = createLossChart($('lossChart'))
@@ -1295,14 +1331,31 @@ window.addEventListener('mousemove', (e) => {
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t)
   $('themeBtn').textContent = t === 'dark' ? '亮色模式' : '暗色模式'
+  tintWiredInputs()
   try { localStorage.setItem('handcalc:theme', t) } catch { /* 忽略 */ }
 }
 let _savedTheme = null
 try { _savedTheme = localStorage.getItem('handcalc:theme') } catch { /* 忽略 */ }
 applyTheme(_savedTheme === 'dark' ? 'dark' : 'light')
-$('themeBtn').addEventListener('click', () => {
-  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
-  applyTheme(cur)
+// 需求：切换主题时，从光标处扩散黑/白圆（纸色）覆盖整个 UI，圆扩散中段完成切换
+$('themeBtn').addEventListener('click', (e) => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+  const x = (e && e.clientX) || Math.round(innerWidth / 2)
+  const y = (e && e.clientY) || 24
+  const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) * 1.08
+  const cover = document.createElement('div')
+  cover.style.cssText =
+    'position:fixed;left:' + x + 'px;top:' + y + 'px;width:' + (2 * r) + 'px;height:' + (2 * r) + 'px;' +
+    'margin-left:' + (-r) + 'px;margin-top:' + (-r) + 'px;border-radius:50%;' +
+    'background:' + (next === 'dark' ? '#201d18' : '#f9f7f4') + ';' +
+    'z-index:2147483000;pointer-events:none;transform:scale(0);' +
+    'transition:transform .55s cubic-bezier(.45,0,.25,1);will-change:transform;'
+  document.body.appendChild(cover)
+  requestAnimationFrame(() => {
+    cover.style.transform = 'scale(1)'
+    setTimeout(() => applyTheme(next), 280)
+  })
+  setTimeout(() => cover.remove(), 750)
 })
 
 // ---------- 双层讲解（纸张翻面：正面直觉 / 背面公式）----------
@@ -1864,9 +1917,11 @@ document.querySelectorAll('.tab-btn').forEach((b) => {
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('on'))
     b.classList.add('on')
     document.getElementById('tab-' + b.dataset.tab).classList.add('on')
-    // 隐藏面板的 canvas 尺寸为 0，切回时重绘
+    // 隐藏面板的 canvas 尺寸为 0，切回时重绘；wired 控件同理（wiredRender(true) 强制按真实尺寸重绘）
     setTimeout(() => {
       try {
+        document.querySelectorAll('wired-slider,wired-button,wired-input,wired-textarea,wired-select').forEach((el) => { if (el.wiredRender) el.wiredRender(true) })
+        tintWiredInputs()
         lossChart.draw(); heatmap.draw(); attnHeatmap.draw()
         pixLossChart.draw(); melLossChart.draw()
         if (state.pix) { renderGrid($('pixTarget'), state.pix.grid); renderGrid($('pixOut'), seqToGrid(Array(256).fill(0))) }

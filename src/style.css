@@ -401,6 +401,14 @@ wired-slider { --wired-highlight: var(--accent); }
 wired-button:not([disabled]):hover { animation: none !important; filter: brightness(1.08); }
 wired-button:not([disabled]):active { transform: none !important; }
 
+/* 兜底：即使 wired 组件还没拿到 wired-rendered（隐藏 tab 里 0 尺寸），也绝不透明——
+   避免切到该 tab 时按钮/滑块"消失"，只剩背景粒子透过 */
+wired-button, wired-slider, wired-input, wired-textarea, wired-select {
+  opacity: 1 !important;
+}
+wired-button svg, wired-slider svg { visibility: hidden; }
+wired-button.wired-rendered svg, wired-slider.wired-rendered svg { visibility: visible; }
+
 /* 页面入场：一次干净的上移淡入（无倾斜，stagger） */
 .card { animation: cardIn .45s ease-out backwards; }
 @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
