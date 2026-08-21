@@ -947,6 +947,78 @@ wired-input, wired-textarea, wired-select, wired-slider {
 }
 wired-slider { --wired-highlight: var(--accent); }
 
+/* ============================================================
+ * 素描本层：复古画纸背景 + 手写标题 + 容器手绘边框 + wired 抖动
+ * ============================================================ */
+
+/* --- 背景：暖米白 + 网格纸点阵 + 纸张纤维噪点（feTurbulence） --- */
+:root {
+  --paper: #f9f7f4;      /* 暖米白 */
+  --paper-2: #fdfcf9;
+  --ink: #2f2a24;
+  --ink-soft: #6b6257;
+  --ink-faint: #9c9285;
+  --accent: #c0452c;
+  --glow: #1f7a6d;
+  --line: #d4cdc0;
+}
+[data-theme="dark"] {
+  --paper: #201d18; --paper-2: #2a2620;
+  --ink: #ece6da; --ink-soft: #b8ae9e; --ink-faint: #8a8172;
+  --accent: #d66a4a; --glow: #4fbfae; --line: #4a4438;
+}
+body {
+  background-color: #f9f7f4;
+  background-image:
+    radial-gradient(circle, #d4cdc0 0.8px, transparent 1.2px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.045'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 16px 16px, 200px 200px;
+  background-attachment: fixed;
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* 手写标题字体栈（英文数字用 Patrick Hand，中文回退楷体） */
+:root { --hand: "Patrick Hand", "Comic Neue", "Kaiti SC", "KaiTi", "STKaiti", cursive; }
+.title, .card h2, .stage-dot, .viz-title, .tag, .hint, .muted,
+.ms-title, .dict-term, .dict-one, .paper-org, .gen, .ms-final, .ans-text {
+  font-family: var(--hand);
+}
+
+/* --- 容器：手绘感边框（双线 + 偏移阴影 + 微旋转） --- */
+.card {
+  border: 1.5px solid rgba(212, 205, 192, 0.9) !important;
+  box-shadow: 3px 3px 0 rgba(212, 205, 192, 0.55), -2px 5px 0 rgba(212, 205, 192, 0.25) !important;
+  background: rgba(253, 252, 249, 0.55) !important;
+}
+.teach, .howto, .note, .feat, .dict-item, .paper, .answer, .ach-item,
+.faq-a, .ms-step, .pair, .gen-history, .intro, .pref-list, .stage-bar {
+  border: 1.5px solid rgba(212, 205, 192, 0.75) !important;
+  box-shadow: 2px 2px 0 rgba(212, 205, 192, 0.4) !important;
+  background: rgba(253, 252, 249, 0.45) !important;
+}
+.answer, .pair { border-style: dashed !important; }
+
+/* 画布：纸面白 + 手绘框 */
+.canvas, .pixel-canvas, .dict-canvas {
+  background: #fdfcf9 !important;
+  border: 1.5px solid rgba(212, 205, 192, 0.9) !important;
+  box-shadow: 2px 2px 0 rgba(212, 205, 192, 0.35) !important;
+}
+
+/* --- wired-elements：悬停抖动 + 变粗 --- */
+wired-button:not([disabled]):hover {
+  animation: wireShake 0.28s ease-in-out;
+}
+@keyframes wireShake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-1.6deg) scale(1.05); }
+  50% { transform: rotate(1.6deg) scale(1.09); }
+  75% { transform: rotate(-1deg) scale(1.05); }
+}
+wired-button:not([disabled]):active {
+  transform: scale(0.94) rotate(-1deg);
+}
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }
