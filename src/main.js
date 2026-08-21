@@ -11,6 +11,7 @@ import { sample } from './sample.js'
 import { createLossChart, createHeatmap, createAttnHeatmap } from './ui.js'
 import { sampleWithAttn } from './attn.js'
 import { initMicroscopeUI } from './microscope-ui.js'
+import { NOTES } from './notes.js'
 import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -36,6 +37,7 @@ const state = {
   dpoOpt: null,  // DPO 专用优化器
   stage: 'pre',  // 'pre' 预训练 | 'sft' 微调 | 'dpo' 对齐
   blind: null,   // 盲测数据 { a, b, correctIsA }
+  genCount: 0,   // 生成次数（Karpathy 彩蛋）
 }
 
 // ---------- DOM ----------
@@ -53,6 +55,7 @@ app.innerHTML = `
       <span id="stageSft" class="stage-dot">贰 微调</span>
       <span class="stage-arrow">→</span>
       <span id="stageDpo" class="stage-dot">叁 对齐</span>
+      <button id="flipBtn" class="btn ghost flip-btn">翻面 · 进阶模式</button>
     </div>
 
     <section class="card" id="dataCard">
@@ -65,7 +68,7 @@ app.innerHTML = `
       <p class="muted" id="corpusInfo"></p>
     </section>
 
-    <section class="card">
+    <section class="card" id="modelCard">
       <h2>贰 · 模型与训练</h2>
       <div class="row">
         <label>档位
@@ -94,7 +97,7 @@ app.innerHTML = `
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sftCard">
       <h2>叁 · 微调（SFT）</h2>
       <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。</p>
       <div class="corpus-pick">
@@ -110,7 +113,7 @@ app.innerHTML = `
       <p class="muted" id="sftInfo"></p>
     </section>
 
-    <section class="card">
+    <section class="card" id="genCard">
       <h2>肆 · 生成</h2>
       <div class="corpus-pick">
         <button id="modeCont" class="chip on">续写模式</button>
@@ -130,7 +133,7 @@ app.innerHTML = `
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="dpoCard">
       <h2>伍 · 偏好对齐（DPO）</h2>
       <p class="muted">让模型生成两个回答，你告诉它哪个更好——它会学会偏向你的偏好。这就是 DPO（2023 年论文算法），也是 OpenAI 标注员做的真实工作。</p>
       <div class="row">
@@ -387,6 +390,13 @@ $('dpoBtn').addEventListener('click', () => {
       updateStage()
       $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 模型已偏向你的偏好`
       heatmap.draw()
+      // 彩蛋：手算者印（三阶段全部完成）
+      if (!document.querySelector('.stamp')) {
+        const stamp = document.createElement('div')
+        stamp.className = 'stamp'
+        stamp.textContent = '手算者 · 完成'
+        document.querySelector('.masthead').after(stamp)
+      }
       return
     }
     const k = 20
@@ -487,6 +497,14 @@ $('corpus').addEventListener('input', () => {
 let genTimer = null
 $('genBtn').addEventListener('click', () => {
   if (!state.model) return
+  state.genCount++
+  // 彩蛋：致敬 Karpathy（连续生成 5 次）
+  if (state.genCount === 5 && !document.querySelector('.egg-karpathy')) {
+    const kg = document.createElement('div')
+    kg.className = 'egg egg-karpathy'
+    kg.textContent = "Let's build GPT! — 致敬 Andrej Karpathy"
+    $('genOut').after(kg)
+  }
   if (genTimer) { clearInterval(genTimer); genTimer = null }
   const temp = parseFloat($('temp').value) || 1
   const len = parseInt($('len').value) || 32
@@ -543,6 +561,45 @@ $('genBtn').addEventListener('click', () => {
   }
 })
 
+// ---------- 双层讲解（纸张翻面：正面直觉 / 背面公式）----------
+function initNotes() {
+  let flipped = false
+  for (const id in NOTES) {
+    const card = $(id)
+    if (!card) continue
+    const h2 = card.querySelector('h2')
+    if (!h2) continue
+    const n = NOTES[id]
+    const div = document.createElement('div')
+    div.className = 'note'
+    div.innerHTML = `<span class="note-novice">${n.novice}</span><span class="note-expert" hidden>${n.expert}</span>`
+    h2.after(div)
+  }
+  $('flipBtn').addEventListener('click', () => {
+    flipped = !flipped
+    document.querySelectorAll('.note-expert').forEach((el) => (el.hidden = !flipped))
+    document.querySelectorAll('.note-novice').forEach((el) => (el.hidden = flipped))
+    $('flipBtn').textContent = flipped ? '翻回 · 直觉模式' : '翻面 · 进阶模式'
+  })
+}
+
 // ---------- 启动 ----------
+initNotes()
 initMicroscopeUI($('microscopeRoot'), () => state.model)
+
+// 彩蛋：深夜引言（00:00-04:00 打开页面）
+const _h = new Date().getHours()
+if (_h >= 0 && _h < 4) {
+  const _sub = document.querySelector('.sub')
+  if (_sub) _sub.textContent = '夜深了，数字的世界依然清醒。'
+}
+
+// 彩蛋：无穷小 μ（档位拉到最小）
+$('size').addEventListener('change', () => {
+  const title = document.querySelector('.title')
+  const mu = title.querySelector('.mu')
+  if ($('size').value === 'tiny' && !mu) title.insertAdjacentHTML('beforeend', '<span class="mu"> μ</span>')
+  if ($('size').value !== 'tiny' && mu) mu.remove()
+})
+
 setCorpus(CORPUS[0].text, CORPUS[0].title)
