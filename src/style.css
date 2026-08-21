@@ -370,6 +370,42 @@ wired-slider { --wired-highlight: var(--accent); }
 }
 
 /* ===== 响应式 ===== */
+/* ============================================================
+ * 板正 + 配色修正层（手绘线条保留，组件全部板板正正）
+ * ============================================================ */
+
+/* dark 模式主色换亮（深底上更醒目、更和谐） */
+[data-theme="dark"] {
+  --accent: #ff8f5c;
+  --glow: #5cd4c0;
+}
+
+/* 组件全部归正（去掉歪斜/倾斜/抖动，手绘感靠线条而非形状） */
+.masthead, .title, .sub, .tabs, .tab-btn, .tab-btn:nth-child(even),
+.card, .card:nth-child(3n+1), .card:nth-child(3n), .card:nth-child(3n+2),
+.card h2, .card h2::after, .chip, .chip:nth-child(odd), .chip:nth-child(even),
+.btn, .btn.ghost, .btn:hover:not(:disabled), .row, .corpus-pick,
+.viz-row .viz, .pair .answer, .dict-item, .dict-item:nth-child(even),
+.paper, .paper:nth-child(even), .feat, .feat b, .dict-term,
+.blind-title, .faq summary, .ms-title, .gen, .ms-final, .ans-text,
+.intro, .stage-bar, .muted, .hint, .tag, .advanced summary,
+.ms-step, .paper-link, .masthead::after, .title, .title .hl {
+  transform: none !important;
+}
+.card:hover { transform: none !important; }
+
+/* 按钮板正矩形（手绘感由 wired/边框承担） */
+.btn { clip-path: none !important; border-radius: 4px !important; }
+
+/* wired 去抖动（hover 微亮代替抖动） */
+wired-button:not([disabled]):hover { animation: none !important; filter: brightness(1.08); }
+wired-button:not([disabled]):active { transform: none !important; }
+
+/* 页面入场：一次干净的上移淡入（无倾斜，stagger） */
+.card { animation: cardIn .45s ease-out backwards; }
+@keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* ===== 响应式 ===== */
 @media (max-width: 560px) {
   .stage { padding: 0 14px 60px; }
   .title { font-size: 3rem; }
