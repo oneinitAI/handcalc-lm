@@ -6,7 +6,7 @@
 export function initParticles(canvas) {
   const dpr = window.devicePixelRatio || 1
   let w = 0, h = 0, ctx = null
-  const chars = '0123456789abcdef手算LM月光荷塘注意力模型token梯度loss数据曲线像素音高猜字魔法'.split('')
+  const chars = '0123456789abcdefAI 学习本月光荷塘注意力模型token梯度loss数据曲线像素音高猜字魔法'.split('')
   const parts = []
   const N = 80
 

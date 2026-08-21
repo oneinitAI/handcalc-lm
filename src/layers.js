@@ -1,6 +1,6 @@
 // ============================================================
 // src/layers.js
-// 手算LM —— 基础层：LayerNorm、GELU（含 forward + backward）
+// AI 学习本 —— 基础层：LayerNorm、GELU（含 forward + backward）
 // ============================================================
 
 import { zeros } from './matrix.js'

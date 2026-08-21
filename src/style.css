@@ -1,5 +1,5 @@
 /* ============================================================
- * 手算LM —— 素描本 UI（全重写）
+ * AI 学习本 —— 素描本 UI（全重写）
  * 复古画纸 · 手写体 · 零卡片 · wired 手绘控件
  * ============================================================ */
 
@@ -59,7 +59,7 @@ body {
   pointer-events: none; white-space: nowrap;
 }
 .stage::after {
-  content: 'HandCalc';
+  content: 'AI Notebook';
   position: fixed; left: -40px; bottom: -10px; z-index: -1;
   font-family: var(--hand);
   font-size: clamp(4rem, 15vw, 11rem);
@@ -82,7 +82,7 @@ body {
 .title .hl { color: var(--accent); }
 .sub { font-family: var(--hand); font-size: 19px; color: var(--ink-soft); margin-left: 3vw; transform: rotate(-1deg); }
 .masthead::after {
-  content: '手算';
+  content: '学习本';
   position: absolute; top: 34px; right: 2vw;
   border: 3px double var(--accent); color: var(--accent);
   font-family: var(--hand); font-size: 20px; letter-spacing: 2px;

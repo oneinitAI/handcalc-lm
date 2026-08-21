@@ -1,6 +1,6 @@
 // ============================================================
 // src/main.js
-// 手算LM —— M1：预训练实验台（数据区 + 训练控制 + 基础可视化 + 流式生成）
+// AI 学习本 —— M1：预训练实验台（数据区 + 训练控制 + 基础可视化 + 流式生成）
 // ============================================================
 
 import './style.css'
@@ -88,8 +88,8 @@ app.innerHTML = `
     </nav>
     <div id="tab-text" class="tab-panel on">
     <header class="masthead">
-      <h1 class="title">手算<span class="hl">LM</span></h1>
-      <p class="sub">给你权重，亲手算出它的下一句话</p>
+      <h1 class="title">AI <span class="hl">学习本</span></h1>
+      <p class="sub">翻开这本笔记，把 AI 从头看懂</p>
     </header>
 
     <div class="intro">
@@ -192,15 +192,15 @@ app.innerHTML = `
       <h2>叁 · 微调（SFT）</h2>
       <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。<b>SFT = Supervised Fine-Tuning（监督微调）</b>：为什么微调？预训练只会续写，微调换问答数据教它"回答问题"。</p>
       <div class="corpus-pick">
-        <select id="qaSet" class="inline-select" title="选择要载入的示例问答套：通用对话 / 关于手算LM / 趣味问答">
+        <select id="qaSet" class="inline-select" title="选择要载入的示例问答套：通用对话 / 关于AI 学习本 / 趣味问答">
           <option value="general">通用对话</option>
-          <option value="about">关于手算LM</option>
+          <option value="about">关于AI 学习本</option>
           <option value="fun">趣味问答</option>
         </select>
         <button id="loadQaBtn" class="chip" title="把选中的示例问答对填入下面的文本框（可再编辑）">载入示例问答</button>
         <span class="hint">每行一条「问题 / 回答」，斜杠分隔</span>
       </div>
-      <textarea id="qaList" rows="4" placeholder="每行一条：问题 / 回答。例：你是谁 / 我是手算LM"></textarea>
+      <textarea id="qaList" rows="4" placeholder="每行一条：问题 / 回答。例：你是谁 / 我是AI 学习本"></textarea>
       <div class="row">
         <label title="微调时，训练数据里问答对的占比。越高越会回答；但语料续写能力越容易被覆盖（灾难性遗忘）。50% 是平衡点">混合（问答占比）
           <select id="mixRatio">
@@ -1011,14 +1011,14 @@ $('dpoBtn').addEventListener('click', () => {
       updateStage()
       $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 下方盲测已解锁：猜猜哪个是对齐后的模型`
       heatmap.draw()
-      // 彩蛋：手算者印（三阶段全部完成）
+      // 彩蛋：学习者印（三阶段全部完成）
       state.ach.allDone = true
       checkAch()
       eggFound()
       if (!document.querySelector('.stamp')) {
         const stamp = document.createElement('div')
         stamp.className = 'stamp'
-        stamp.textContent = '手算者 · 完成'
+        stamp.textContent = '学习者 · 完成'
         document.querySelector('.masthead').after(stamp)
       }
       return

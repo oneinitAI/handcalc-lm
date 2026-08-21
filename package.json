@@ -1,7 +1,7 @@
 {
-  "name": "handcalc-lm",
+  "name": "ai-notebook",
   "version": "0.1.0",
-  "description": "手算LM — 给你权重，亲手算出它的下一句话。浏览器内从零构建微型 Transformer 的教学项目。",
+  "description": "AI 学习本 — 翻开这本笔记，把 AI 从头看懂。浏览器内从零构建微型 Transformer 的教学项目。",
   "type": "module",
   "scripts": {
     "dev": "vite",

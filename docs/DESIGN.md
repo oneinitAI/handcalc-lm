@@ -1,4 +1,4 @@
-# 手算LM · UI 设计逻辑（Design System）
+# AI 学习本 · UI 设计逻辑（Design System）
 
 > 数学手稿 × 科技反差 —— 纸是旧的，算的是最前沿的；笔是手写的，结果是 AI 的。
 

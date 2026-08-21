@@ -1,6 +1,6 @@
 // ============================================================
 // src/linear.js
-// 手算LM —— 线性层 + MLP（含 GELU）forward + backward
+// AI 学习本 —— 线性层 + MLP（含 GELU）forward + backward
 // ============================================================
 
 import { zeros } from './matrix.js'

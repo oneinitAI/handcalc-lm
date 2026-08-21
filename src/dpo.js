@@ -1,6 +1,6 @@
 // ============================================================
 // src/dpo.js
-// 手算LM —— Direct Preference Optimization（DPO）
+// AI 学习本 —— Direct Preference Optimization（DPO）
 // 参考：Rafailov et al. 2023《Direct Preference Optimization》
 //   L_DPO = -log σ(β·log(πθ(yw|x)/πref(yw|x)) - β·log(πθ(yl|x)/πref(yl|x)))
 // 只累计"回答部分"的对数概率（prompt 部分 mask 掉，与标准实现一致）。

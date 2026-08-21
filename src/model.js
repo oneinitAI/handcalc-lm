@@ -1,6 +1,6 @@
 // ============================================================
 // src/model.js
-// 手算LM —— 微型 Transformer 主流程（纯 JS，手写）
+// AI 学习本 —— 微型 Transformer 主流程（纯 JS，手写）
 // 结构参考 nanoGPT/model.py；教学简化 batch=1。
 // 参数存储：params = { name: { value, grad } }，value/grad 均为二维数组。
 // ============================================================
@@ -10,7 +10,7 @@ import { layerNormForward } from './layers.js'
 import { mlpForward } from './linear.js'
 import { attentionForward } from './attention.js'
 
-/** 手算LM 极简配置（~300 参数级） */
+/** AI 学习本 极简配置（~300 参数级） */
 export const defaultCfg = {
   vocab_size: 32,
   block_size: 8,
