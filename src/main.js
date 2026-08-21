@@ -78,6 +78,11 @@ const state = {
 const app = document.getElementById('app')
 app.innerHTML = `
   <main class="stage">
+    <header class="masthead">
+      <h1 class="title">AI <span class="hl">学习本</span></h1>
+      <p class="sub">翻开这本笔记，把 AI 从头看懂</p>
+      <a class="gh-badge" href="https://github.com/oneinitAI/handcalc-lm" target="_blank" rel="noopener" title="开源仓库，欢迎 star">GitHub 源码 ↗</a>
+    </header>
     <nav class="tabs" id="mainTabs">
       <button class="tab-btn on" data-tab="text">文本模型</button>
       <button class="tab-btn" data-tab="image">图像模型</button>
@@ -90,11 +95,6 @@ app.innerHTML = `
     </nav>
     <button id="navToggle" class="nav-toggle" aria-label="打开菜单"><span></span><span></span><span></span></button>
     <div id="tab-text" class="tab-panel on">
-    <header class="masthead">
-      <h1 class="title">AI <span class="hl">学习本</span></h1>
-      <p class="sub">翻开这本笔记，把 AI 从头看懂</p>
-    </header>
-
     <div class="intro">
       <p>这里是一个让你<b>亲手训练迷你大模型</b>的实验台——一个只会"猜下一个字"的小机器，在你的浏览器里<b>真实训练</b>，没有任何预设剧本。</p>
       <p class="intro-path">你的旅程：<b>壹</b> 选语料 · <b>贰</b> 训练它学说话 · <b>叁</b> 微调它会回答 · <b>肆</b> 生成看它想什么 · <b>伍</b> 对齐让它变讨喜 · <b>陆</b> 显微镜看穿每一步</p>

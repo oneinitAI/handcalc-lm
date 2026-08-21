@@ -71,6 +71,15 @@ body {
 
 /* ===== 题签 ===== */
 .masthead { padding-top: 8vh; padding-bottom: 4vh; transform: rotate(-1.5deg); }
+/* GitHub 源码徽章（右上角） */
+.gh-badge {
+  position: absolute; top: 84px; right: 2vw;
+  font-family: var(--hand); font-size: 14px; letter-spacing: 1px;
+  padding: 4px 12px; color: var(--ink); text-decoration: none;
+  border: 1.5px solid var(--ink); border-radius: 6px 3px 8px 2px;
+  background: var(--paper-2);
+}
+.gh-badge:hover { color: var(--accent); border-color: var(--accent); }
 .title {
   font-family: var(--hand);
   font-size: clamp(2.8rem, 10vw, 6.4rem);
@@ -504,6 +513,7 @@ wired-button.wired-rendered svg, wired-slider.wired-rendered svg { visibility: v
 
   /* ---- 题签 ---- */
   .masthead { padding-top: 20px; padding-bottom: 24px; }
+  .gh-badge { top: 14px; right: 66px; font-size: 12px; padding: 3px 9px; }
   .title { font-size: 2.5rem; letter-spacing: 0.04em; }
   .sub { font-size: 16px; margin-left: 0; }
   .intro { margin-right: 0; }
