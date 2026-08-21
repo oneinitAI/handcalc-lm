@@ -21,6 +21,7 @@ import { createGradientDescent, createWave } from './animation.js'
 import { initMultiModal } from './mm.js'
 import { initDict } from './dict.js'
 import { PAPERS, PAPER_CATS } from './papers.js'
+import { initParticles } from './particles.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -1240,6 +1241,16 @@ $('genBtn').addEventListener('click', () => {
       }
     }, 80)
   }
+})
+
+// 大胆层：背景数字粒子 + 鼠标光晕
+initParticles(document.getElementById('bg-particles'))
+const _glow = document.createElement('div')
+_glow.id = 'cursorGlow'
+document.body.appendChild(_glow)
+window.addEventListener('mousemove', (e) => {
+  _glow.style.left = e.clientX + 'px'
+  _glow.style.top = e.clientY + 'px'
 })
 
 // ---------- 主题切换（暗色/亮色，localStorage 持久化）----------

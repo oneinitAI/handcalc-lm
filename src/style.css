@@ -545,6 +545,111 @@ textarea, input, select { font-size: 15px; }
 .blind-title { font-size: 15px; }
 .egg { font-size: 13.5px; }
 
+/* ============================================================
+ * 大胆层：数字生命 × 霓虹手稿（抛弃克制的羊皮纸）
+ * VARIANCE 9 / MOTION 7 —— 深空墨底 + 霓虹对撞 + 巨型排版 + 3D 磁吸
+ * ============================================================ */
+:root {
+  --paper: #07070f;
+  --paper-2: #0f0f1e;
+  --ink: #eceefc;
+  --ink-soft: #a6a8cc;
+  --ink-faint: #6a6c94;
+  --accent: #ff3d5a;
+  --glow: #00e5c3;
+  --line: #24244a;
+}
+[data-theme="dark"] {
+  --paper: #05050c; --paper-2: #0d0d1a;
+  --ink: #eceefc; --ink-soft: #a6a8cc; --ink-faint: #6a6c94;
+  --accent: #ff3d5a; --glow: #00e5c3; --line: #222246;
+}
+
+/* 背景粒子层 */
+#bg-particles { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+
+body {
+  background:
+    radial-gradient(1200px 800px at 20% 0%, rgba(255, 61, 90, 0.07), transparent 60%),
+    radial-gradient(1000px 700px at 90% 100%, rgba(0, 229, 195, 0.07), transparent 60%),
+    #07070f;
+}
+
+/* 巨型渐变标题（霓虹呼吸） */
+.title {
+  font-size: clamp(2.6rem, 9vw, 6.2rem);
+  letter-spacing: 0.05em;
+  background: linear-gradient(120deg, #ff3d5a, #ffb03d, #00e5c3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255, 61, 90, 0.35));
+  animation: titleGlow 4s ease-in-out infinite;
+}
+@keyframes titleGlow {
+  0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 61, 90, 0.3)); }
+  50% { filter: drop-shadow(0 0 28px rgba(0, 229, 195, 0.5)); }
+}
+.title::after { background: linear-gradient(90deg, var(--accent), var(--glow)); height: 3px; }
+
+/* 卡片：玻璃深底 + 霓虹 hover 3D 磁吸 */
+.card {
+  background: rgba(15, 15, 30, 0.72);
+  border: 1px solid rgba(36, 36, 74, 0.8);
+  backdrop-filter: blur(10px);
+  transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .3s, border-color .3s;
+}
+.card:hover {
+  border-color: rgba(255, 61, 90, 0.55);
+  box-shadow: 0 0 30px rgba(255, 61, 90, 0.16), 0 0 70px rgba(0, 229, 195, 0.07);
+  transform: perspective(1000px) rotateX(1.5deg) rotateY(-1.5deg) translateY(-4px);
+}
+.card h2 { color: var(--accent); text-shadow: 0 0 14px rgba(255, 61, 90, 0.45); position: relative; }
+.card h2::after { content: ''; position: absolute; left: 0; bottom: -3px; height: 3px; width: 45%; background: linear-gradient(90deg, var(--accent), transparent); }
+
+/* 按钮：霓虹渐变 */
+.btn { background: linear-gradient(135deg, #ff3d5a, #ff7a3d); color: #0a0a14; font-weight: 700; box-shadow: 0 0 20px rgba(255, 61, 90, 0.3); }
+.btn:hover:not(:disabled) { box-shadow: 0 0 36px rgba(255, 61, 90, 0.6); background: linear-gradient(135deg, #ff5a70, #ff9450); }
+.btn.ghost { background: transparent; color: var(--glow); border: 1px solid rgba(0, 229, 195, 0.5); }
+.btn.ghost:hover:not(:disabled) { box-shadow: 0 0 22px rgba(0, 229, 195, 0.3); border-color: var(--glow); color: var(--glow); background: transparent; }
+
+/* 硬编码浅色 → 深底（不破坏结构） */
+textarea, input, select, .canvas, .pixel-canvas, .dict-canvas, .ms-calc, .answer,
+.vocab-char, .calc-key, .ms-calc-display, .progress-track, .param-bar {
+  background: #0d0d1a !important;
+  color: var(--ink);
+}
+
+/* Tab 霓虹激活 */
+.tab-btn.on { background: linear-gradient(135deg, #ff3d5a, #ff7a3d); color: #0a0a14; border-color: transparent; box-shadow: 0 0 24px rgba(255, 61, 90, 0.45); font-weight: 700; }
+
+/* 阶段条霓虹 */
+.stage-dot.on { border-color: var(--glow); color: var(--glow); box-shadow: 0 0 14px rgba(0, 229, 195, 0.35); }
+
+/* 内容块统一深玻璃 */
+.teach, .note, .intro, .howto, .feat, .ach-item, .dict-item, .faq-a, .pref-list, .gloss-item, .stage-bar {
+  background: rgba(15, 15, 30, 0.6);
+}
+.feat, .dict-item, .ach-item { border-color: rgba(36, 36, 74, 0.9); }
+
+/* 题签印章霓虹 */
+.masthead::after { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 16px rgba(255, 61, 90, 0.35); }
+
+/* 鼠标光晕跟随 */
+#cursorGlow {
+  position: fixed; width: 420px; height: 420px; border-radius: 50%;
+  pointer-events: none; z-index: -1;
+  background: radial-gradient(circle, rgba(255, 61, 90, 0.07), transparent 60%);
+  transform: translate(-50%, -50%);
+  transition: left 0.08s linear, top 0.08s linear;
+}
+
+/* 滚动条霓虹 */
+::-webkit-scrollbar-thumb { background: linear-gradient(#ff3d5a, #00e5c3); }
+
+/* 词向量/嵌入 小图也深底 */
+.ms-table th { background: rgba(255, 61, 90, 0.08); }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }
