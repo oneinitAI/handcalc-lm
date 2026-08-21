@@ -14,6 +14,7 @@ export const ACHIEVEMENTS = [
   { id: 'gen10', name: '高产作者', desc: '生成满 10 次' },
   { id: 'snap', name: '存档大师', desc: '保存一次模型快照' },
   { id: 'all', name: '三阶段通关', desc: '完成 预训练 → 微调 → 对齐 全旅程' },
+  { id: 'hunter', name: '彩蛋猎人', desc: '发现 4 个不同的彩蛋' },
 ]
 
 const KEY = 'handcalc:ach'

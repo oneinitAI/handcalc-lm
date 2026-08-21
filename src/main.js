@@ -52,6 +52,7 @@ const state = {
   stopNotified: false, // 自动停止提示标志
   genHistory: [],   // 生成历史（内容积累）
   egg50: false,     // 欧拉彩蛋触发标志
+  eggQuote: false,  // 训练师语录彩蛋标志
   ach: {
     earned: loadEarned(),
     totalSteps: 0,
@@ -654,6 +655,13 @@ function runSteps(n) {
   if (ll) ll.textContent = 'loss 序列：' + state.losses.slice(-12).map((v) => v.toFixed(2)).join(' → ')
   // 成就：累计步数 + 训崩检测（loss 曾下降后飙升到初始 1.3 倍）
   state.ach.totalSteps += n
+  // 彩蛋：训练师语录（5000 步）
+  if (state.ach.totalSteps >= 5000 && !state.eggQuote) {
+    state.eggQuote = true
+    const q = ['你已经训练了 5000 步——比很多模型的一生都久。', '这些数字开始有自己的想法了。', '你在亲手养大一个会猜字的生命。']
+    showToast(q[Math.floor(Math.random() * q.length)])
+    eggFound()
+  }
   if (!state.ach.crashedOnce && state.initLoss && state.ach.totalSteps > 100) {
     const cur = state.losses[state.losses.length - 1]
     if (cur > state.initLoss * 1.3 && state.losses[Math.max(0, state.losses.length - 50)] < state.initLoss) {
@@ -678,6 +686,7 @@ function updateProgress() {
   if (!state.egg50 && cur <= state.initLoss * 0.5) {
     state.egg50 = true
     $('modelInfo').textContent = ($('modelInfo').textContent || '') + ' ✦ 欧拉的手稿在向你致意：e^{iπ}+1=0'
+    eggFound()
   }
 }
 
@@ -956,6 +965,7 @@ $('dpoBtn').addEventListener('click', () => {
       // 彩蛋：手算者印（三阶段全部完成）
       state.ach.allDone = true
       checkAch()
+      eggFound()
       if (!document.querySelector('.stamp')) {
         const stamp = document.createElement('div')
         stamp.className = 'stamp'
@@ -1059,6 +1069,14 @@ $('corpus').addEventListener('input', () => {
   stopTraining()
   buildModel()
   lossChart.draw()
+  // 彩蛋：语料里出现"魔法"
+  if (/魔法|magic/i.test($('corpus').value) && !document.querySelector('.egg-magic')) {
+    const egg = document.createElement('div')
+    egg.className = 'egg egg-magic'
+    egg.textContent = '没有魔法，只有乘法。'
+    $('corpusInfo').after(egg)
+    eggFound()
+  }
 })
 
 // ---------- 流式生成 ----------
@@ -1284,11 +1302,22 @@ function unlockAch(id) {
   state.ach.earned.push(id)
   saveEarned(state.ach.earned)
   renderAch()
+  showToast(`解锁成就：${a.name} — ${a.desc}`)
+}
+
+/** 通用 toast（彩蛋/成就提示） */
+function showToast(text) {
   const t = document.createElement('div')
   t.className = 'ach-toast'
-  t.textContent = `解锁成就：${a.name} — ${a.desc}`
+  t.textContent = text
   document.body.appendChild(t)
-  setTimeout(() => t.remove(), 3200)
+  setTimeout(() => t.remove(), 3500)
+}
+
+/** 彩蛋计数（彩蛋猎人成就） */
+function eggFound() {
+  state.ach.eggCount = (state.ach.eggCount || 0) + 1
+  checkAch()
 }
 
 function checkAch() {
@@ -1303,6 +1332,7 @@ function checkAch() {
   if (state.genCount >= 10) unlockAch('gen10')
   if (s.snapOnce) unlockAch('snap')
   if (state.stage === 'dpo' && s.allDone) unlockAch('all')
+  if ((s.eggCount || 0) >= 4) unlockAch('hunter')
 }
 
 // 显微镜手算答对 → 成就
@@ -1703,6 +1733,18 @@ $('quantGenBtn').addEventListener('click', () => {
   $('quantInfo').textContent = bits >= 32
     ? 'FP32（原始精度）：占空间 100%，质量最高'
     : `INT${bits}：权重被舍入到 ${Math.pow(2, bits - 1) - 1} 级 · 理论体积约 ${(100 / ratio).toFixed(0)}%（快 ${ratio.toFixed(1)} 倍）· 看生成是否变"糙"`
+})
+
+// 彩蛋：连点题签 10 次 → 隐藏章「算无遗策」
+let stampClicks = 0
+document.querySelector('.masthead').addEventListener('click', (e) => {
+  if (e.target.closest('button, input, select, textarea')) return
+  stampClicks++
+  if (stampClicks >= 10) {
+    stampClicks = 0
+    showToast('你连点了 10 次题签——盖下隐藏章：「算无遗策」')
+    eggFound()
+  }
 })
 
 // 卡片 staggered 入场（教学节奏：一张张"翻开"）

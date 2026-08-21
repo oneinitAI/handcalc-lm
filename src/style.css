@@ -164,12 +164,13 @@ body {
 
 /* ===== 卡片：纸页（stagger 入场） ===== */
 .card {
-  animation: cardin .5s ease-out both;
+  animation: cardin .5s ease-out backwards;
 }
 @keyframes cardin {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
+.card:hover { transform: translateY(-2px); transition: transform .25s ease-out, box-shadow .25s ease-out; }
 .card {
   border: 1px solid var(--line);
   background: var(--paper-2);
@@ -595,6 +596,16 @@ textarea:focus-visible, input:focus-visible, select:focus-visible {
   transition: width .3s ease;
 }
 .progress-text { font-family: var(--mono); font-size: 12px; color: var(--glow); min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --- 按钮：涟漪 + 按压 --- */
+.btn:active:not(:disabled) { transform: scale(0.96); box-shadow: 0 0 0 6px rgba(179, 68, 44, 0.15); }
+
+/* --- 题签印章：微微浮动 --- */
+.masthead::after { animation: stampFloat 3s ease-in-out infinite; }
+@keyframes stampFloat {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  50% { transform: rotate(-4deg) translateY(-3px); }
+}
 
 /* --- 定制滑杆（手稿纸槽 + 朱砂滑钮 + 青磷光刻度） --- */
 input[type="range"] {
