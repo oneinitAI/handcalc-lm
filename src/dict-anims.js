@@ -344,4 +344,28 @@ function drawAgent(ctx, w, h, t) {
   ctx.fillText('Agent：规划 → 行动 → 观察 → 再规划（循环）', w / 2, h - 4)
 }
 
-export const DRAW = { drawToken, drawAttention, drawSoftmax, drawTemperature, drawTopK, drawContext, drawCacheHit, drawEmbedding, drawMulti, drawVibe, drawTool, drawSkill, drawMCP, drawAgent }
+function drawCnn(ctx, w, h, t) {
+  const n = 10
+  const cw = w / n
+  const start = Math.floor(t / 0.7) % (n - 2)
+  const y = h / 2
+  ctx.font = '12px serif'
+  ctx.textAlign = 'center'
+  for (let k = 0; k < n; k++) {
+    ctx.fillStyle = '#6b6357'
+    ctx.fillRect(k * cw + cw * 0.18, y - 13, cw * 0.64, 26)
+    ctx.fillStyle = '#fdfcf9'
+    ctx.fillText(String(k + 1), k * cw + cw / 2, y + 5)
+  }
+  ctx.strokeStyle = '#b3442c'
+  ctx.lineWidth = 2.5
+  ctx.strokeRect(start * cw, y - 20, cw * 3, 40)
+  ctx.fillStyle = '#b3442c'
+  ctx.font = '12px serif'
+  ctx.fillText('窗口只看这 3 个邻居', start * cw + cw * 1.5, y - 28)
+  ctx.fillStyle = '#6b6357'
+  ctx.font = '11px serif'
+  ctx.fillText('卷积核滑动，一次只看窗口内（局部视野）', w / 2, h - 8)
+}
+
+export const DRAW = { drawToken, drawAttention, drawSoftmax, drawTemperature, drawTopK, drawContext, drawCacheHit, drawEmbedding, drawMulti, drawVibe, drawTool, drawSkill, drawMCP, drawAgent, drawCnn }

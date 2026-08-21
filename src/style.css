@@ -345,6 +345,16 @@ textarea { border: 1.5px dashed rgba(47, 42, 36, 0.3); }
 .egg { font-family: var(--hand); font-size: 14px; color: var(--accent); margin-top: 6px; }
 .mu { color: var(--glow); }
 
+/* 术语链接：点击跳到词典看动画 */
+.gloss-link {
+  color: var(--glow);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.gloss-link:hover { color: var(--accent); text-decoration-color: var(--accent); }
+
 /* ===== 粒子背景 / 鼠标光晕 ===== */
 #bg-particles { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 #cursorGlow { position: fixed; width: 400px; height: 400px; border-radius: 50%; pointer-events: none; z-index: -1; background: radial-gradient(circle, rgba(192, 69, 44, 0.05), transparent 60%); transform: translate(-50%, -50%); transition: left .08s linear, top .08s linear; }
