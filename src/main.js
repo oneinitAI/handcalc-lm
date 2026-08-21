@@ -99,6 +99,7 @@ app.innerHTML = `
       <p>这里是一个让你<b>亲手训练迷你大模型</b>的实验台——一个只会"猜下一个字"的小机器，在你的浏览器里<b>真实训练</b>，没有任何预设剧本。</p>
       <p class="intro-path">你的旅程：<b>壹</b> 选语料 · <b>贰</b> 训练它学说话 · <b>叁</b> 微调它会回答 · <b>肆</b> 生成看它想什么 · <b>伍</b> 对齐让它变讨喜 · <b>陆</b> 显微镜看穿每一步</p>
       <p class="muted">每张卡片下方有「怎么做」指引；右上「翻面」可看背后的公式。</p>
+      <p class="note">（AI 味这么重，太八股了 <span class="yawn">(￣へ￣)</span> 可是 AI 为啥会这么说呢……）</p>
     </div>
 
     <div class="stage-bar">
@@ -542,7 +543,7 @@ app.innerHTML = `
           <div class="feat"><b>通义千问 阿里</b><span>开源 Qwen 系列，覆盖全尺寸，出海活跃。</span></div>
           <div class="feat"><b>文心一言 百度 / GLM 智谱</b><span>国内老牌与清华系，各有生态与场景。</span></div>
           <div class="feat"><b>OpenAI GPT</b><span>国际标杆，生态最大，ChatGPT 家喻户晓。</span></div>
-          <div class="feat"><b>Anthropic Claude</b><span>强调安全与长文本，编程（Claude Code）很强。</span></div>
+          <div class="feat"><b>Anthropic Claude</b><span>强调安全与长文本，编程（Claude Code）很强。<del title="网传玄学，看看就好">封号狂魔？</del></span></div>
           <div class="feat"><b>Google Gemini</b><span>多模态见长，原生支持图片视频理解。</span></div>
         </div>
       </div>
