@@ -40,6 +40,7 @@ const state = {
   genCount: 0,   // 生成次数（Karpathy 彩蛋）
   initLoss: null,     // 初始 loss（前 10 步平均），进度条基准
   stopNotified: false, // 自动停止提示标志
+  genHistory: [],   // 生成历史（内容积累）
   corpusIds: null,  // 语料字符数组（预训练数据源）
   sftSeq: null,     // 问答对训练序列（微调数据源，存在则混合训练）
   mixRatio: 0.5,    // 微调时问答数据占比（0=纯语料，1=纯问答）
@@ -174,6 +175,7 @@ app.innerHTML = `
       </details>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
       <div class="muted" id="perf"></div>
+      <div id="genHistory" class="gen-history"></div>
       <div class="viz">
         <div class="viz-title">Attention 直播 <span class="tag">模型在"看"哪些字</span></div>
         <canvas id="attnHeatmap" class="canvas"></canvas>
@@ -657,6 +659,18 @@ $('corpus').addEventListener('input', () => {
 
 // ---------- 流式生成 ----------
 let genTimer = null
+// 生成历史：记录每次生成（内容积累感）
+function finishGen(prompt, text) {
+  state.genHistory.push({ prompt, text, ts: Date.now() })
+  renderHistory()
+}
+function renderHistory() {
+  const h = $('genHistory')
+  if (!state.genHistory.length) { h.innerHTML = ''; return }
+  h.innerHTML = '<div class="gen-history-title">生成记录（最近 5 条）</div>' +
+    state.genHistory.slice(-5).reverse().map((g) =>
+      `<div class="gen-history-item"><span class="gh-prompt">${g.prompt}</span>${g.text}</div>`).join('')
+}
 // 示例 prompt 按钮
 document.querySelectorAll('#promptEx .chip').forEach((b) => {
   b.addEventListener('click', () => {
@@ -702,7 +716,7 @@ $('genBtn').addEventListener('click', () => {
     let i = 0
     genTimer = setInterval(() => {
       if (i < answer.length) { out.textContent += answer[i]; i++ }
-      else { clearInterval(genTimer); genTimer = null }
+      else { clearInterval(genTimer); genTimer = null; finishGen('问：' + q, out.textContent) }
     }, 40)
   } else {
     // 续写模式（带 Attention 直播：文本流与热力图同节奏）
@@ -733,6 +747,7 @@ $('genBtn').addEventListener('click', () => {
       } else {
         clearInterval(genTimer)
         genTimer = null
+        finishGen($('prompt').value, out.textContent)
       }
     }, 80)
   }
