@@ -95,8 +95,8 @@ export function seqToGrid(seq, side = SIDE) {
   return g
 }
 
-// ---- 渲染（灰度：白纸 → 墨色）----
-export function renderGrid(canvas, grid) {
+// ---- 渲染（灰度：白纸 → 墨色；悬停显示精确灰度值）----
+export function renderGrid(canvas, grid, hover = null) {
   const side = grid.length
   const dpr = window.devicePixelRatio || 1
   const size = canvas.clientWidth || 180
@@ -124,6 +124,16 @@ export function renderGrid(canvas, grid) {
     ctx.moveTo(0, i * cell); ctx.lineTo(size, i * cell)
   }
   ctx.stroke()
+  // 悬停显示灰度值（可读性铁律：颜色必须能翻译回数字）
+  if (hover && hover.r < side && hover.c < side) {
+    const v = charToVal(grid[hover.r][hover.c])
+    ctx.fillStyle = 'rgba(43,38,32,0.85)'
+    ctx.fillRect(6, 6, 120, 18)
+    ctx.fillStyle = '#faf7f0'
+    ctx.font = '11px monospace'
+    ctx.textAlign = 'left'
+    ctx.fillText(`像素[${hover.r},${hover.c}] = ${v}`, 10, 19)
+  }
 }
 
 // ---- 用户绘制：把一块 canvas 变成绘制板（笔刷灰度 MAX），输出 grid ----

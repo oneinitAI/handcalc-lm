@@ -54,6 +54,20 @@ export function playMelody(seq, bpm = 220, onStep = null) {
   })
 }
 
+/** 播放单个音调（频率滑杆动手用） */
+export function playTone(freq, dur = 0.8) {
+  const ctx = audioCtx()
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'sine'
+  osc.frequency.value = freq
+  gain.gain.setValueAtTime(0.15, ctx.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+  osc.connect(gain).connect(ctx.destination)
+  osc.start()
+  osc.stop(ctx.currentTime + dur)
+}
+
 /** 音高阶梯可视化：每音一柱，高度=音高，0=底线 */
 export function renderMelody(canvas, seq) {
   const dpr = window.devicePixelRatio || 1
