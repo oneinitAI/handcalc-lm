@@ -11,6 +11,7 @@ export function initMicroscopeUI(root, getModel) {
     <section class="card">
       <h2>陆 · 显微镜</h2>
       <p class="muted">给你权重集和纸笔，你可以把 LLM 的下一句话算出来。这是当前模型对这句话的<b>真实计算过程</b>——没有魔法，只有乘法。</p>
+      <div class="howto">① 输入几个字（只看前 3 个）→ 点「放大观察」<br>② 看 6 步真实计算：查表 → 位置 → 注意力 → 前馈 → 打分 → 选字<br>③ 切「自己算」：用权重表 + 内置计算器亲手算出答案<br>④ 页边楷体批注是新手提示，点右上「翻面·进阶模式」看公式</div>
       <div class="row">
         <input id="msInput" value="月光" size="10">
         <button id="msRun" class="btn">放大观察</button>

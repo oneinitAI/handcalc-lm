@@ -181,6 +181,17 @@ const attnHeatmap = createAttnHeatmap($('attnHeatmap'), 16)
 $('attnHeatmap').addEventListener('mousemove', (e) => { attnHeatmap.onHover(e); attnHeatmap.draw() })
 $('attnHeatmap').addEventListener('mouseleave', () => attnHeatmap.draw())
 
+// 缩放修复：窗口/布局变化时重绘所有 canvas（避免画布拉伸错位）
+let resizeTimer = null
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    lossChart.draw()
+    heatmap.draw()
+    attnHeatmap.draw()
+  }, 100)
+})
+
 // ---------- 模型构建 ----------
 function buildModel() {
   const text = $('corpus').value.trim()
