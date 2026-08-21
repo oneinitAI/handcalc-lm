@@ -713,6 +713,109 @@ textarea, input, select, .canvas, .pixel-canvas, .dict-canvas, .ms-calc, .answer
 .paper-grid .paper:nth-child(even) { transform: rotate(0.8deg) translateY(10px); }
 .paper-grid .paper:nth-child(odd) { transform: rotate(-0.8deg); }
 
+/* ============================================================
+ * 演草纸做题层：彻底无二级容器
+ * 所有框去掉，内容直接"写"在纸上；控件用答题线，章节像题目
+ * ============================================================ */
+.teach, .howto, .note, .feat, .dict-item, .paper, .ach-item, .answer,
+.faq-a, .gloss-item, .pref-list, .stage-bar, .corpus-pick, .dict-grid,
+.paper-grid, .feat-grid, .viz-row, .vocab-view, .gen-history, .param-break,
+.pair, .viz, .tabs, .intro, .ms-step, .ms-calc, .glossary, .train-progress,
+.progress-track, .param-bar {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* 章节 = 题目：楷体大字斜切 + 答题下划线 */
+.card {
+  border-top: 1px dashed rgba(192, 69, 44, 0.25) !important;
+  padding: 32px 10px !important;
+}
+.card h2 {
+  font-family: var(--kai);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  transform: skewX(-8deg);
+  display: inline-block;
+  padding-bottom: 2px;
+  border-bottom: 2px solid rgba(192, 69, 44, 0.45);
+  color: var(--ink);
+}
+
+/* 控件：答题线风格（无框，底线为横线） */
+textarea, input, select {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1.5px solid rgba(43, 38, 32, 0.45) !important;
+  border-radius: 0 !important;
+  padding: 4px 6px !important;
+}
+textarea { border: 1.5px dashed rgba(43, 38, 32, 0.3) !important; }
+.chip {
+  border: none !important;
+  border-bottom: 1.5px solid rgba(43, 38, 32, 0.3) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 2px 12px !important;
+  color: var(--ink-soft);
+}
+.chip.on { color: var(--accent); border-bottom-color: var(--accent); }
+.chip:hover { color: var(--accent); }
+
+/* Tab：下划线激活（不是框） */
+.tab-btn {
+  border: none !important;
+  border-bottom: 2px solid transparent;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+.tab-btn.on { border-bottom-color: var(--ink) !important; color: var(--ink) !important; box-shadow: none !important; }
+.tab-btn:hover { color: var(--accent); }
+
+/* 按钮：墨框（纸上的方块） */
+.btn {
+  background: transparent !important;
+  border: 1.5px solid var(--ink) !important;
+  color: var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-weight: 400;
+}
+.btn:hover:not(:disabled) { background: var(--ink) !important; color: var(--paper-2) !important; }
+.btn:disabled { opacity: 0.35; }
+
+/* 画布：透明纸面 + 底线 */
+.canvas, .pixel-canvas, .dict-canvas {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: none !important;
+  border-bottom: 1px dashed rgba(43, 38, 32, 0.2) !important;
+  border-radius: 0 !important;
+}
+
+/* 可视化标题像页边批注 */
+.viz-title { font-family: var(--kai); letter-spacing: 1px; }
+
+/* 答案并排：底线区分（无框） */
+.answer { padding: 8px 4px !important; border-bottom: 1px dotted rgba(43, 38, 32, 0.2) !important; }
+
+/* 批注：手写感 */
+.howto, .note {
+  font-family: var(--kai);
+  color: var(--ink-soft);
+  border-left: 2px solid rgba(192, 69, 44, 0.3) !important;
+  padding-left: 10px !important;
+}
+
+/* 进度条：纸上画线 */
+.progress-track { height: 10px !important; background: transparent !important; border-bottom: 1.5px solid rgba(43,38,32,0.4) !important; }
+.progress-fill { background: var(--accent) !important; }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }
