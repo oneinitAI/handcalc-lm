@@ -309,6 +309,16 @@ app.innerHTML = `
           <canvas id="pixNoiseCanvas" class="pixel-canvas"></canvas>
         </div>
       </div>
+      <div class="teach">
+        <h3>动手④ 微调：让它学会"按提示画图"</h3>
+        <p>把多个图案各配一个"提示标记"，一起训练——之后你"告诉"它画哪个，它就画哪个。<b>这就是文生图的雏形</b>（给提示，生成对应图）。</p>
+        <div class="row">
+          <button id="pixFTBtn" class="btn" title="用 圆/心形/H 三个图案 + 各自提示标记一起训练">开始微调</button>
+          <span class="hint" id="pixFTInfo"></span>
+        </div>
+        <div class="row" id="pixFTPick"></div>
+        <canvas id="pixFTOut" class="pixel-canvas"></canvas>
+      </div>
     <section class="card" id="pixelCard">
       <h2>捌 · 图像模型（像素即序列）</h2>
       <p class="muted">图像在模型眼里 = <b>256 个像素值（16×16 灰度 16 级）</b>。训练它"猜下一个像素"——和文字模型<b>同一个架构</b>，换数据就能画图。</p>
@@ -345,6 +355,16 @@ app.innerHTML = `
       <div class="teach">
         <h3>动手② 猜下一个音</h3>
         <p>选旋律或输入简谱 → 训练 → 模型作曲 → 播放。它也是"猜下一个"的 Transformer（音乐生成模型雏形）。</p>
+      </div>
+      <div class="teach">
+        <h3>动手③ 微调：让它学会"按提示作曲"</h3>
+        <p>把多首旋律各配一个"提示标记"一起训练——之后你说要哪首风格，它奏哪个。<b>提示作曲的雏形</b>。</p>
+        <div class="row">
+          <button id="melFTBtn" class="btn" title="用 小星星/欢乐颂/两只老虎 + 各自提示标记一起训练">开始微调</button>
+          <span class="hint" id="melFTInfo"></span>
+        </div>
+        <div class="row" id="melFTPick"></div>
+        <canvas id="melFTOut" class="canvas"></canvas>
       </div>
     <section class="card" id="voiceCard">
       <h2>玖 · 语音模型（旋律序列）</h2>
@@ -1211,6 +1231,52 @@ function genPixel() {
     if (i >= 256) { clearInterval(anim); renderGrid(out, seqToGrid(full)); $('pixInfo').textContent = '生成完成——它画出了它学到的图案' }
   }, 30)
 }
+// 图像条件生成微调（SFT：学会"按提示画图"——文生图雏形）
+const PIX_FT_PATTERNS = PIXEL_PATTERNS.slice(0, 3) // 圆 / 心形 / H
+function buildPixelFT() {
+  const vocab = 16 + PIX_FT_PATTERNS.length
+  const cfg = { vocab_size: vocab, block_size: 48, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
+  const { params } = createModel(cfg, 42)
+  const seq = []
+  PIX_FT_PATTERNS.forEach((pat, i) => {
+    seq.push(16 + i) // 提示标记 token
+    seq.push(...gridToSeq(pat.grid))
+  })
+  state.pixFT = { params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), seq }
+  $('pixFTPick').innerHTML = PIX_FT_PATTERNS.map((p, i) =>
+    `<button class="chip" data-pi="${i}" title="输入提示标记，模型生成对应图案">生成「${p.name}」</button>`).join('')
+  document.querySelectorAll('#pixFTPick .chip').forEach((b) => {
+    b.addEventListener('click', () => genPixelFT(+b.dataset.pi))
+  })
+  $('pixFTInfo').textContent = '微调就绪：圆 / 心形 / H 各配一个提示标记'
+}
+function trainPixelFT() {
+  const ft = state.pixFT
+  const L = ft.seq.length
+  let done = 0
+  const total = 3000
+  const loop = () => {
+    const k = 100
+    for (let i = 0; i < k && done < total; i++, done++) {
+      const start = Math.floor(Math.random() * (L - ft.cfg.block_size))
+      trainStep(ft.params, ft.seq.slice(start, start + ft.cfg.block_size), ft.seq.slice(start + 1, start + ft.cfg.block_size + 1), ft.cfg, ft.opt)
+    }
+    $('pixFTInfo').textContent = `微调中… ${done}/${total}`
+    if (done < total) requestAnimationFrame(loop)
+    else $('pixFTInfo').textContent = '微调完成！点下方提示，看它画出对应的图案'
+  }
+  loop()
+}
+function genPixelFT(pi) {
+  const ft = state.pixFT
+  const gen = sample(ft.params, [16 + pi], 260, ft.cfg, { temperature: 0.05 })
+  const pix = gen.slice(1).filter((v) => v < 16).slice(0, 256)
+  renderGrid($('pixFTOut'), seqToGrid(pix))
+  $('pixFTInfo').textContent = `提示「${PIX_FT_PATTERNS[pi].name}」→ 模型画出了它。换一个提示，看它画不同的`
+}
+$('pixFTBtn').addEventListener('click', () => { if (!state.pixFT) buildPixelFT(); trainPixelFT() })
+buildPixelFT()
+
 // 动手：扩散加噪演示（拖滑杆把图案加噪成雪花）
 $('pixNoise').addEventListener('input', () => {
   const p = state.pix
@@ -1228,6 +1294,53 @@ document.querySelectorAll('#pixelPick .chip[data-pix]').forEach((b) => {
 $('pixTrainBtn').addEventListener('click', trainPixel)
 $('pixGenBtn').addEventListener('click', genPixel)
 buildPixel(PIXEL_PATTERNS[0])
+
+// 音频条件生成微调（SFT：学会"按提示作曲"——提示作曲雏形）
+const MEL_FT = MELODIES.slice(0, 3) // 小星星 / 欢乐颂 / 两只老虎
+function buildMelFT() {
+  const vocab = 8 + MEL_FT.length
+  const cfg = { vocab_size: vocab, block_size: 32, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
+  const { params } = createModel(cfg, 42)
+  const seq = []
+  MEL_FT.forEach((m, i) => {
+    seq.push(8 + i) // 提示标记 token
+    seq.push(...parseMelody(m.seq))
+  })
+  state.melFT = { params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), seq }
+  $('melFTPick').innerHTML = MEL_FT.map((m, i) =>
+    `<button class="chip" data-mi="${i}" title="输入提示标记，模型奏出对应旋律">奏「${m.name}」</button>`).join('')
+  document.querySelectorAll('#melFTPick .chip').forEach((b) => {
+    b.addEventListener('click', () => genMelFT(+b.dataset.mi))
+  })
+  $('melFTInfo').textContent = '微调就绪：小星星 / 欢乐颂 / 两只老虎 各配一个提示标记'
+}
+function trainMelFT() {
+  const ft = state.melFT
+  const L = ft.seq.length
+  let done = 0
+  const total = 3000
+  const loop = () => {
+    const k = 100
+    for (let i = 0; i < k && done < total; i++, done++) {
+      const start = Math.floor(Math.random() * (L - ft.cfg.block_size))
+      trainStep(ft.params, ft.seq.slice(start, start + ft.cfg.block_size), ft.seq.slice(start + 1, start + ft.cfg.block_size + 1), ft.cfg, ft.opt)
+    }
+    $('melFTInfo').textContent = `微调中… ${done}/${total}`
+    if (done < total) requestAnimationFrame(loop)
+    else $('melFTInfo').textContent = '微调完成！点下方提示，听它奏对应的旋律'
+  }
+  loop()
+}
+function genMelFT(mi) {
+  const ft = state.melFT
+  const gen = sample(ft.params, [8 + mi], 60, ft.cfg, { temperature: 0.4 })
+  const mel = gen.slice(1).filter((v) => v < 8).slice(0, 48)
+  renderMelody($('melFTOut'), mel)
+  playMelody(mel)
+  $('melFTInfo').textContent = `提示「${MEL_FT[mi].name}」→ 模型奏出了它的旋律（自动播放中）`
+}
+$('melFTBtn').addEventListener('click', () => { if (!state.melFT) buildMelFT(); trainMelFT() })
+buildMelFT()
 
 // ---------- 语音模型（旋律序列，完整版）----------
 const melLossChart = createLossChart($('melLoss'))
