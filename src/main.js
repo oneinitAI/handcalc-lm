@@ -4,7 +4,7 @@
 // ============================================================
 
 import './style.css'
-import { CORPUS, buildVocab, tokensToText } from './corpus.js'
+import { CORPUS, buildVocab, tokensToText, USER, ASSISTANT, END } from './corpus.js'
 import { createModel, paramCount } from './model.js'
 import { trainStep, createOptimizer } from './train.js'
 import { sample } from './sample.js'
@@ -40,6 +40,9 @@ const state = {
   genCount: 0,   // 生成次数（Karpathy 彩蛋）
   initLoss: null,     // 初始 loss（前 10 步平均），进度条基准
   stopNotified: false, // 自动停止提示标志
+  corpusIds: null,  // 语料字符数组（预训练数据源）
+  sftSeq: null,     // 问答对训练序列（微调数据源，存在则混合训练）
+  mixRatio: 0.5,    // 微调时问答数据占比（0=纯语料，1=纯问答）
 }
 
 // ---------- DOM ----------
@@ -113,6 +116,18 @@ app.innerHTML = `
         <span class="hint">每行一条「问题 / 回答」，斜杠分隔</span>
       </div>
       <textarea id="qaList" rows="4"></textarea>
+      <div class="row">
+        <label>混合（问答占比）
+          <select id="mixRatio">
+            <option value="0">纯语料</option>
+            <option value="0.3">30% 问答</option>
+            <option value="0.5" selected>50% 问答（平衡）</option>
+            <option value="0.7">70% 问答（偏回答）</option>
+            <option value="1">纯问答（易覆盖语料）</option>
+          </select>
+        </label>
+        <span class="hint">问答占比越高越会回答，但语料续写能力越容易被覆盖（灾难性遗忘）</span>
+      </div>
       <div class="row">
         <button id="sftBtn" class="btn">开始微调</button>
         <button id="snapBtn" class="btn ghost">记快照（微调前）</button>
@@ -213,7 +228,8 @@ function buildModel() {
   const { params } = createModel(cfg, 42)
   state.model = { params, cfg, stoi, itos, chars }
   state.opt = createOptimizer(params, { type: 'adam', lr: parseFloat($('lr').value) })
-  state.ids = text.split('')
+  state.corpusIds = text.split('')
+  state.sftSeq = null
   state.losses = []
   state.initLoss = null
   state.stopNotified = false
@@ -235,7 +251,9 @@ function buildModel() {
 // ---------- 训练 ----------
 function runSteps(n) {
   const { model, opt } = state
-  const ids = state.ids // 预训练=语料字符，微调=带标记的问答序列
+  // 微调时按 mixRatio 混合「问答对 + 语料」防灾难性遗忘；预训练只用语料
+  let ids = state.corpusIds
+  if (state.sftSeq && Math.random() < (parseFloat($('mixRatio').value) || 0.5)) ids = state.sftSeq
   const L = ids.length
   for (let k = 0; k < n; k++) {
     const i = Math.floor(Math.random() * Math.max(1, L - model.cfg.block_size - 1))
@@ -386,11 +404,11 @@ function buildSft() {
   const pairs = parseQA()
   if (!pairs.length) { alert('请输入问答对（每行「问题 / 回答」，斜杠分隔）'); return false }
   const formatted = formatPairs(pairs)
-  const added = extendVocab(state.model, formatted, state.opt) // 问答对新字符扩展 vocab + 优化器
-  state.ids = formatted.split('')
+  const added = extendVocab(state.model, formatted, state.opt)
+  state.sftSeq = formatted.split('')
   state.sftData = { pairs }
   $('modelInfo').textContent = `${state.model.itos.length} token（含角色标记）· 微调新增 ${added} 字符`
-  $('sftInfo').textContent = `${pairs.length} 条问答对 · 训练序列 ${state.ids.length} token`
+  $('sftInfo').textContent = `${pairs.length} 条问答对 · 学习率已调低 · 混合比例可调（防遗忘）`
   return true
 }
 
@@ -441,6 +459,8 @@ $('sftBtn').addEventListener('click', () => {
   if (!state.model) buildModel()
   if (!state.model) return
   if (!buildSft()) return
+  // 微调学习率自动降低（防过拟合/覆盖语料能力）
+  state.opt = createOptimizer(state.model.params, { type: 'adam', lr: (parseFloat($('lr').value) || 0.01) * 0.3 })
   state.stage = 'sft'
   updateStage()
   state.losses = []
@@ -664,9 +684,10 @@ $('genBtn').addEventListener('click', () => {
     genTimer = setInterval(() => {
       if (i < seq.length) {
         const tok = state.model.itos[seq[i]]
-        out.textContent += tok
+        const isMark = tok === USER || tok === ASSISTANT || tok === END
+        if (!isMark) out.textContent += tok // 续写不显示角色标记（防污染）
         if (stepIdx < attnSteps.length) {
-          attnHeatmap.pushStep(tok, attnSteps[stepIdx])
+          attnHeatmap.pushStep(isMark ? '·' : tok, attnSteps[stepIdx])
           attnHeatmap.draw()
           stepIdx++
         }
