@@ -1,0 +1,15 @@
+{
+  "name": "handcalc-lm",
+  "version": "0.1.0",
+  "description": "手算LM — 给你权重，亲手算出它的下一句话。浏览器内从零构建微型 Transformer 的教学项目。",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "probe": "node probe/bench.js"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
