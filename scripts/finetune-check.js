@@ -12,7 +12,7 @@ import { DEFAULT_QA, formatPairs, qaPrompt, extendVocab } from '../src/sft.js'
 
 const text = CORPUS[0].text
 const { stoi, itos, vocab } = buildVocab(text)
-const cfg = { vocab_size: vocab, block_size: 12, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
+const cfg = { vocab_size: vocab, block_size: 16, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
 const { params } = createModel(cfg, 42)
 
 const corpusIds = text.split('')
@@ -42,14 +42,26 @@ console.log('预训练后  问"你好" →', ask('你好'), '（应不会回答�
 // ---- SFT：50/50 混合语料+问答（模拟浏览器修复后的行为），学习率调低 ----
 const sftSeq = formatPairs(DEFAULT_QA).split('')
 extendVocab({ params, cfg, stoi, itos }, formatPairs(DEFAULT_QA), opt)
+// 回答区标记（<a> 后 <e> 前）
+const isAnswer = new Array(sftSeq.length).fill(false)
+let inAns = false
+for (let i = 0; i < sftSeq.length; i++) {
+  const c = sftSeq[i]
+  if (c === '\u0002') inAns = true
+  else if (c === '\u0003') inAns = false
+  else isAnswer[i] = inAns
+}
 opt = createOptimizer(params, { type: 'adam', lr: 0.005 })
-for (let s = 0; s < 1500; s++) {
-  const seq = Math.random() < 0.5 ? corpusIds : sftSeq
+for (let s = 0; s < 2500; s++) {
+  const useSft = Math.random() < 0.5
+  const seq = useSft ? sftSeq : corpusIds
   const L = seq.length
   const i = Math.floor(Math.random() * Math.max(1, L - cfg.block_size - 1))
   const x = seq.slice(i, i + cfg.block_size).map((c) => stoi[c])
   const y = seq.slice(i + 1, i + cfg.block_size + 1).map((c) => stoi[c])
-  trainStep(params, x, y, cfg, opt)
+  // SFT 只训练回答部分（prompt 是条件，mask 掉）
+  const mask = useSft ? Array.from({ length: cfg.block_size }, (_, t) => isAnswer[i + 1 + t]) : null
+  trainStep(params, x, y, cfg, opt, { mask })
 }
 console.log('混合微调后 续写"月光" →', gen('月光'), '（应保留语料风格）')
 console.log('混合微调后 问"你好" →', ask('你好'), '（应会回答）')

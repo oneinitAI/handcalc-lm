@@ -71,11 +71,12 @@ export function optStep(params, opt) {
 
 /**
  * 训练一步：forward → loss → backward → 参数更新。
+ * opts.mask（可选）：mask[i]=false 的位置不训练（SFT 只学回答部分）。
  * 返回 { loss }。
  */
-export function trainStep(params, idx, targets, cfg, opt) {
+export function trainStep(params, idx, targets, cfg, opt, opts = {}) {
   const { logits, cache } = forward(params, idx, targets, cfg)
-  const ce = crossEntropy(logits, targets)
+  const ce = crossEntropy(logits, targets, opts.mask || null)
   zeroGrad(params)
   backward(params, cache, ce.dlogits, cfg)
   optStep(params, opt)

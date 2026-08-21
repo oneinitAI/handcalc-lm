@@ -42,6 +42,7 @@ const state = {
   stopNotified: false, // 自动停止提示标志
   corpusIds: null,  // 语料字符数组（预训练数据源）
   sftSeq: null,     // 问答对训练序列（微调数据源，存在则混合训练）
+  isAnswer: null,   // 回答区标记（SFT 只训练 <a>后<e>前的回答部分）
   mixRatio: 0.5,    // 微调时问答数据占比（0=纯语料，1=纯问答）
 }
 
@@ -230,6 +231,7 @@ function buildModel() {
   state.opt = createOptimizer(params, { type: 'adam', lr: parseFloat($('lr').value) })
   state.corpusIds = text.split('')
   state.sftSeq = null
+  state.isAnswer = null
   state.losses = []
   state.initLoss = null
   state.stopNotified = false
@@ -253,13 +255,16 @@ function runSteps(n) {
   const { model, opt } = state
   // 微调时按 mixRatio 混合「问答对 + 语料」防灾难性遗忘；预训练只用语料
   let ids = state.corpusIds
-  if (state.sftSeq && Math.random() < (parseFloat($('mixRatio').value) || 0.5)) ids = state.sftSeq
+  let isSft = false
+  if (state.sftSeq && Math.random() < (parseFloat($('mixRatio').value) || 0.5)) { ids = state.sftSeq; isSft = true }
   const L = ids.length
   for (let k = 0; k < n; k++) {
     const i = Math.floor(Math.random() * Math.max(1, L - model.cfg.block_size - 1))
     const x = ids.slice(i, i + model.cfg.block_size).map((c) => model.stoi[c])
     const y = ids.slice(i + 1, i + model.cfg.block_size + 1).map((c) => model.stoi[c])
-    const { loss } = trainStep(model.params, x, y, model.cfg, opt)
+    // SFT：只训练回答部分（prompt 是条件，mask 掉不参与 loss）
+    const mask = isSft ? Array.from({ length: model.cfg.block_size }, (_, t) => state.isAnswer[i + 1 + t]) : null
+    const { loss } = trainStep(model.params, x, y, model.cfg, opt, { mask })
     state.losses.push(loss)
   }
   // 初始 loss 基准（前 10 步平均）
@@ -405,7 +410,18 @@ function buildSft() {
   if (!pairs.length) { alert('请输入问答对（每行「问题 / 回答」，斜杠分隔）'); return false }
   const formatted = formatPairs(pairs)
   const added = extendVocab(state.model, formatted, state.opt)
-  state.sftSeq = formatted.split('')
+  const sftSeq = formatted.split('')
+  // 回答区标记：<a> 之后、<e> 之前的位置（SFT 只训练回答，prompt 是条件）
+  const isAnswer = new Array(sftSeq.length).fill(false)
+  let inAns = false
+  for (let i = 0; i < sftSeq.length; i++) {
+    const c = sftSeq[i]
+    if (c === ASSISTANT) inAns = true
+    else if (c === END) inAns = false
+    else isAnswer[i] = inAns
+  }
+  state.sftSeq = sftSeq
+  state.isAnswer = isAnswer
   state.sftData = { pairs }
   $('modelInfo').textContent = `${state.model.itos.length} token（含角色标记）· 微调新增 ${added} 字符`
   $('sftInfo').textContent = `${pairs.length} 条问答对 · 学习率已调低 · 混合比例可调（防遗忘）`

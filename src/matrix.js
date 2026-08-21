@@ -173,24 +173,33 @@ export function softmaxRows(M) {
 
 /**
  * 交叉熵（平均）：logits [n][vocab]，targets [n]（整数索引）。
- * 返回 { loss, probs, dlogits } —— probs 供可视化，dlogits 供反向传播。
- * 教学点：dlogits = (probs - onehot(targets)) / n，这是"预测与真实之差"。
+ * mask（可选）：mask[i]=false 的位置不参与 loss、梯度为 0
+ *   ——SFT 用它只训练"回答部分"（prompt 是条件，不训练）。
+ * 返回 { loss, probs, dlogits }。
  */
-export function crossEntropy(logits, targets) {
+export function crossEntropy(logits, targets, mask = null) {
   const n = logits.length
   const vocab = logits[0].length
   const probs = softmaxRows(logits)
+  // 有效位置数（mask=false 不参与）
+  let count = 0
+  for (let i = 0; i < n; i++) if (!(mask && !mask[i])) count++
+  if (!count) return { loss: 0, probs, dlogits: new Array(n).fill(new Array(vocab).fill(0)) }
   let loss = 0
   const dlogits = new Array(n)
   for (let i = 0; i < n; i++) {
     const t = targets[i]
+    if (mask && !mask[i]) {
+      dlogits[i] = new Array(vocab).fill(0) // 该位置不训练（如 SFT 的 prompt 部分）
+      continue
+    }
     loss += -Math.log(Math.max(probs[i][t], 1e-12))
     dlogits[i] = new Array(vocab)
     for (let j = 0; j < vocab; j++) {
-      dlogits[i][j] = (probs[i][j] - (j === t ? 1 : 0)) / n
+      dlogits[i][j] = (probs[i][j] - (j === t ? 1 : 0)) / count
     }
   }
-  return { loss: loss / n, probs, dlogits }
+  return { loss: loss / count, probs, dlogits }
 }
 
 // ---------- 数值梯度检查辅助 ----------
