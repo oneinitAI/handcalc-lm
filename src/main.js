@@ -16,9 +16,11 @@ import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
 const SIZES = {
-  tiny:   { n_layer: 1, n_head: 1, n_embd: 8,  block_size: 8 },
-  small:  { n_layer: 2, n_head: 2, n_embd: 16, block_size: 12 },
-  medium: { n_layer: 2, n_head: 4, n_embd: 32, block_size: 16 },
+  ultratiny: { name: '超微', n_layer: 1, n_head: 1, n_embd: 4,  block_size: 6 },
+  tiny:      { name: '微',   n_layer: 1, n_head: 1, n_embd: 8,  block_size: 8 },
+  small:     { name: '小',   n_layer: 2, n_head: 2, n_embd: 16, block_size: 12 },
+  medium:    { name: '中',   n_layer: 2, n_head: 4, n_embd: 32, block_size: 16 },
+  large:     { name: '大',   n_layer: 4, n_head: 8, n_embd: 64, block_size: 24 },
 }
 
 // ---------- 状态 ----------
@@ -86,12 +88,21 @@ app.innerHTML = `
       <div class="row">
         <label>档位
           <select id="size">
+            <option value="ultratiny">超微</option>
             <option value="tiny">微</option>
             <option value="small">小</option>
             <option value="medium" selected>中</option>
+            <option value="large">大</option>
           </select>
         </label>
         <label>学习率 <input id="lr" value="0.01" size="6"></label>
+        <label>优化器
+          <select id="optType">
+            <option value="adam" selected>Adam</option>
+            <option value="sgd">SGD</option>
+          </select>
+        </label>
+        <label>种子 <input id="seed" value="42" size="5"></label>
         <label>速度 <input id="speed" type="range" min="20" max="1000" value="200"></label>
         <button id="trainBtn" class="btn">开始训练</button>
         <button id="stepBtn" class="btn ghost">单步</button>
@@ -242,9 +253,10 @@ function buildModel() {
   const { chars, stoi, itos, vocab } = buildVocab(text)
   const size = SIZES[$('size').value]
   const cfg = { vocab_size: vocab, bias: true, ...size }
-  const { params } = createModel(cfg, 42)
+  const seed = parseInt($('seed').value) || 42
+  const { params } = createModel(cfg, seed)
   state.model = { params, cfg, stoi, itos, chars }
-  state.opt = createOptimizer(params, { type: 'adam', lr: parseFloat($('lr').value) })
+  state.opt = createOptimizer(params, { type: $('optType').value, lr: parseFloat($('lr').value) })
   state.corpusIds = text.split('')
   state.sftSeq = null
   state.losses = []
@@ -790,8 +802,8 @@ if (_h >= 0 && _h < 4) {
 $('size').addEventListener('change', () => {
   const title = document.querySelector('.title')
   const mu = title.querySelector('.mu')
-  if ($('size').value === 'tiny' && !mu) title.insertAdjacentHTML('beforeend', '<span class="mu"> μ</span>')
-  if ($('size').value !== 'tiny' && mu) mu.remove()
+  if ($('size').value === 'ultratiny' && !mu) title.insertAdjacentHTML('beforeend', '<span class="mu"> μ</span>')
+  if ($('size').value !== 'ultratiny' && mu) mu.remove()
 })
 
 setCorpus(CORPUS[0].text, CORPUS[0].title)
