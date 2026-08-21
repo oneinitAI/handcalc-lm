@@ -34,6 +34,8 @@ const state = {
   pair: null,   // 当前待点选的回答对 {a, b}（token 数组）
   refParams: null, // DPO 参考模型（冻结）
   dpoOpt: null,  // DPO 专用优化器
+  stage: 'pre',  // 'pre' 预训练 | 'sft' 微调 | 'dpo' 对齐
+  blind: null,   // 盲测数据 { a, b, correctIsA }
 }
 
 // ---------- DOM ----------
@@ -44,6 +46,14 @@ app.innerHTML = `
       <h1 class="title">手算<span class="hl">LM</span></h1>
       <p class="sub">给你权重，亲手算出它的下一句话</p>
     </header>
+
+    <div class="stage-bar">
+      <span id="stagePre" class="stage-dot on">壹 预训练</span>
+      <span class="stage-arrow">→</span>
+      <span id="stageSft" class="stage-dot">贰 微调</span>
+      <span class="stage-arrow">→</span>
+      <span id="stageDpo" class="stage-dot">叁 对齐</span>
+    </div>
 
     <section class="card" id="dataCard">
       <h2>壹 · 语料</h2>
@@ -113,6 +123,7 @@ app.innerHTML = `
         <label>长度 <input id="len" value="32" size="4"></label>
       </div>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
+      <div class="muted" id="perf"></div>
       <div class="viz">
         <div class="viz-title">Attention 直播 <span class="tag">模型在"看"哪些字</span></div>
         <canvas id="attnHeatmap" class="canvas"></canvas>
@@ -144,6 +155,7 @@ app.innerHTML = `
         <button id="dpoResetBtn" class="btn ghost">清空偏好</button>
       </div>
       <p class="muted" id="dpoInfo"></p>
+      <div id="blindBox" hidden></div>
     </section>
 
     <div id="microscopeRoot"></div>
@@ -294,6 +306,19 @@ function setMode(m) {
   $('genOut').textContent = m === 'qa' ? '（问答模式：输入问题，模型试着回答）' : '（先训练，再让它续写）'
 }
 
+/** 阶段感知：随训练阶段解锁功能 */
+function updateStage() {
+  const s = state.stage
+  $('stagePre').classList.toggle('on', true)
+  $('stageSft').classList.toggle('on', s === 'sft' || s === 'dpo')
+  $('stageDpo').classList.toggle('on', s === 'dpo')
+  // 问答模式需完成 SFT 后才解锁
+  $('modeQa').disabled = s === 'pre'
+  if (s === 'pre' && state.mode === 'qa') setMode('cont')
+  // 盲测需完成 DPO 后才解锁
+  if (s === 'dpo') initBlind()
+}
+
 $('loadQaBtn').addEventListener('click', () => {
   $('qaList').value = DEFAULT_QA.map((p) => `${p.q} / ${p.a}`).join('\n')
 })
@@ -301,6 +326,8 @@ $('sftBtn').addEventListener('click', () => {
   if (!state.model) buildModel()
   if (!state.model) return
   if (!buildSft()) return
+  state.stage = 'sft'
+  updateStage()
   state.losses = []
   lossChart.clear()
   startTraining()
@@ -356,6 +383,8 @@ $('dpoBtn').addEventListener('click', () => {
   let lastLoss = 0
   const loop = () => {
     if (done >= total) {
+      state.stage = 'dpo'
+      updateStage()
       $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 模型已偏向你的偏好`
       heatmap.draw()
       return
@@ -380,6 +409,58 @@ $('dpoResetBtn').addEventListener('click', () => {
   $('dpoBtn').disabled = true
   $('dpoInfo').textContent = ''
 })
+
+// ---------- 盲测（DPO 验收：猜猜哪个是对齐后的模型）----------
+function answerFrom(params, x, temp) {
+  const seq = sample(params, x, 24, state.model.cfg, { temperature: temp })
+  let end = seq.length
+  for (let i = x.length; i < seq.length; i++) {
+    if (state.model.itos[seq[i]] === '\u0003') { end = i; break }
+  }
+  return tokensToText(state.model.itos, seq.slice(x.length, end)) || '（空）'
+}
+
+function initBlind() {
+  const box = $('blindBox')
+  box.hidden = false
+  if (box.dataset.ready) return
+  box.dataset.ready = '1'
+  box.innerHTML = `
+    <div class="blind-title">🔍 盲测：猜猜哪个是「对齐后」的模型？</div>
+    <div class="row">
+      <input id="blindQ" value="你好" size="12">
+      <button id="blindGen" class="btn ghost">生成两版回答</button>
+    </div>
+    <div id="blindPair" class="pair"></div>
+    <div id="blindResult" class="muted"></div>
+  `
+  $('blindGen').addEventListener('click', blindGenerate)
+}
+
+function blindGenerate() {
+  if (!state.refParams) { $('blindResult').textContent = '（还没有参考模型，先做 SFT 和 DPO）'; return }
+  const q = $('blindQ').value.trim() || '你好'
+  const x = qaPrompt(state.model.stoi, q)
+  const cur = answerFrom(state.model.params, x, 0.8) // DPO 后
+  const ref = answerFrom(state.refParams, x, 0.8)   // DPO 前
+  const swap = Math.random() < 0.5
+  state.blind = { a: swap ? ref : cur, b: swap ? cur : ref, correctIsA: !swap }
+  const pair = $('blindPair')
+  pair.innerHTML = `
+    <div class="answer"><div class="ans-text">${state.blind.a}</div><button id="guessA" class="btn ghost">我猜这个是对齐后</button></div>
+    <div class="answer"><div class="ans-text">${state.blind.b}</div><button id="guessB" class="btn ghost">我猜这个是对齐后</button></div>
+  `
+  $('guessA').addEventListener('click', () => blindGuess(true))
+  $('guessB').addEventListener('click', () => blindGuess(false))
+  $('blindResult').textContent = '点选你的猜测…'
+}
+
+function blindGuess(guessIsA) {
+  const correct = state.blind.correctIsA === guessIsA
+  const real = state.blind.correctIsA ? state.blind.a : state.blind.b
+  $('blindResult').textContent = (correct ? '✅ 猜对了！' : '❌ 猜错了。') +
+    ` 对齐后的回答是「${real}」。${correct ? '你已经能分辨模型的"性格"了。' : '再感受一下两者的差别。'}`
+}
 
 // ---------- 语料选择 ----------
 function setCorpus(text, title) {
@@ -415,7 +496,10 @@ $('genBtn').addEventListener('click', () => {
     // 问答模式：<u>问题<a> → 模型生成回答
     const q = $('prompt').value.trim() || '你是谁'
     const p = qaPrompt(state.model.stoi, q)
+    const t0 = performance.now()
     const seq = sample(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const msPerTok = (performance.now() - t0) / Math.max(1, seq.length - p.length)
+    $('perf').textContent = `${msPerTok.toFixed(1)} ms/token · ${(1000 / msPerTok).toFixed(0)} tokens/s`
     const text = tokensToText(state.model.itos, seq)
     const aIdx = text.indexOf('<a>')
     let answer = aIdx >= 0 ? text.slice(aIdx + 3) : text
@@ -431,7 +515,10 @@ $('genBtn').addEventListener('click', () => {
     // 续写模式（带 Attention 直播：文本流与热力图同节奏）
     const prompt = $('prompt').value
     const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
+    const t0 = performance.now()
     const { seq, attnSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const msPerTok = (performance.now() - t0) / Math.max(1, attnSteps.length)
+    $('perf').textContent = `${msPerTok.toFixed(1)} ms/token · ${(1000 / msPerTok).toFixed(0)} tokens/s · ${paramCount(state.model.params)} 参数`
     const win = seq.slice(0, Math.min(seq.length, state.model.cfg.block_size))
     attnHeatmap.setContext(win.map((i) => state.model.itos[i]))
     attnHeatmap.clear()
