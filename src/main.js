@@ -20,6 +20,7 @@ import { MELODIES, parseMelody, playMelody, playTone, renderMelody } from './mel
 import { createGradientDescent, createWave } from './animation.js'
 import { initMultiModal } from './mm.js'
 import { initDict } from './dict.js'
+import { PAPERS, PAPER_CATS } from './papers.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -81,6 +82,7 @@ app.innerHTML = `
       <button class="tab-btn" data-tab="multi">多模态</button>
       <button class="tab-btn" data-tab="dict">词典</button>
       <button class="tab-btn" data-tab="frontier">前沿</button>
+      <button class="tab-btn" data-tab="papers">论文</button>
     </nav>
     <div id="tab-text" class="tab-panel on">
     <header class="masthead">
@@ -536,6 +538,14 @@ app.innerHTML = `
           <div class="feat"><b>Google Gemini</b><span>多模态见长，原生支持图片视频理解。</span></div>
         </div>
       </div>
+    </div>
+  <div id="tab-papers" class="tab-panel">
+      <div class="teach">
+        <h3>前沿论文库</h3>
+        <p>你亲手训练的每个概念，背后都有一篇论文。点开原文看它怎么诞生——从 Transformer 到 DeepSeek-R1。</p>
+      </div>
+      <div class="corpus-pick" id="paperCats"></div>
+      <div id="paperGrid" class="paper-grid"></div>
     </div>
   </main>
 `
@@ -1701,6 +1711,24 @@ $('gdLr').addEventListener('input', () => { gd.setLr(parseFloat($('gdLr').value)
 
 // 多模态（一个 Transformer 通吃文本+像素+音高）
 initMultiModal({ $, createModel, createOptimizer, trainStep, sample, CORPUS, PIXEL_PATTERNS, MELODIES, gridToSeq, seqToGrid, renderGrid, parseMelody, playMelody, renderMelody, state })
+
+// 前沿论文库（通俗解析 + 原文链接）
+function renderPapers(cat = '全部') {
+  const list = cat === '全部' ? PAPERS : PAPERS.filter((p) => p.cat === cat)
+  $('paperCats').innerHTML = PAPER_CATS.map((c) =>
+    `<button class="chip ${c === cat ? 'on' : ''}" data-cat="${c}" title="筛选：${c}">${c}</button>`).join('')
+  document.querySelectorAll('#paperCats .chip').forEach((b) => {
+    b.addEventListener('click', () => renderPapers(b.dataset.cat))
+  })
+  $('paperGrid').innerHTML = list.map((p) => `
+    <div class="paper card">
+      <div class="paper-top"><b>${p.title}</b><span class="tag">${p.cat} · ${p.year}</span></div>
+      <div class="paper-org">${p.org}</div>
+      <div class="paper-sum">${p.summary}</div>
+      <a class="btn ghost paper-link" href="${p.url}" target="_blank" rel="noopener" title="在新标签页打开论文原文">打开原文 ↗</a>
+    </div>`).join('')
+}
+renderPapers()
 
 // 动画词典（术语用动画解释）
 initDict($('dictRoot'))
