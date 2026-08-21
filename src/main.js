@@ -8,7 +8,9 @@ import { CORPUS, buildVocab, tokensToText } from './corpus.js'
 import { createModel, paramCount } from './model.js'
 import { trainStep, createOptimizer } from './train.js'
 import { sample } from './sample.js'
-import { createLossChart, createHeatmap } from './ui.js'
+import { createLossChart, createHeatmap, createAttnHeatmap } from './ui.js'
+import { sampleWithAttn } from './attn.js'
+import { initMicroscopeUI } from './microscope-ui.js'
 import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -111,6 +113,10 @@ app.innerHTML = `
         <label>长度 <input id="len" value="32" size="4"></label>
       </div>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
+      <div class="viz">
+        <div class="viz-title">Attention 直播 <span class="tag">模型在"看"哪些字</span></div>
+        <canvas id="attnHeatmap" class="canvas"></canvas>
+      </div>
     </section>
 
     <section class="card">
@@ -139,6 +145,8 @@ app.innerHTML = `
       </div>
       <p class="muted" id="dpoInfo"></p>
     </section>
+
+    <div id="microscopeRoot"></div>
   </main>
 `
 
@@ -147,6 +155,10 @@ const lossChart = createLossChart($('lossChart'))
 const heatmap = createHeatmap($('heatmap'))
 $('heatmap').addEventListener('mousemove', (e) => { heatmap.onHover(e); heatmap.draw() })
 $('heatmap').addEventListener('mouseleave', () => { heatmap.draw() })
+
+const attnHeatmap = createAttnHeatmap($('attnHeatmap'), 16)
+$('attnHeatmap').addEventListener('mousemove', (e) => { attnHeatmap.onHover(e); attnHeatmap.draw() })
+$('attnHeatmap').addEventListener('mouseleave', () => attnHeatmap.draw())
 
 // ---------- 模型构建 ----------
 function buildModel() {
@@ -416,23 +428,34 @@ $('genBtn').addEventListener('click', () => {
       else { clearInterval(genTimer); genTimer = null }
     }, 40)
   } else {
-    // 续写模式
+    // 续写模式（带 Attention 直播：文本流与热力图同节奏）
     const prompt = $('prompt').value
     const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
-    const seq = sample(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const { seq, attnSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const win = seq.slice(0, Math.min(seq.length, state.model.cfg.block_size))
+    attnHeatmap.setContext(win.map((i) => state.model.itos[i]))
+    attnHeatmap.clear()
     out.textContent = prompt
     let i = prompt.length
+    let stepIdx = 0
     genTimer = setInterval(() => {
       if (i < seq.length) {
-        out.textContent += state.model.itos[seq[i]]
+        const tok = state.model.itos[seq[i]]
+        out.textContent += tok
+        if (stepIdx < attnSteps.length) {
+          attnHeatmap.pushStep(tok, attnSteps[stepIdx])
+          attnHeatmap.draw()
+          stepIdx++
+        }
         i++
       } else {
         clearInterval(genTimer)
         genTimer = null
       }
-    }, 60)
+    }, 80)
   }
 })
 
 // ---------- 启动 ----------
+initMicroscopeUI($('microscopeRoot'), () => state.model)
 setCorpus(CORPUS[0].text, CORPUS[0].title)

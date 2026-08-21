@@ -154,3 +154,96 @@ export function createHeatmap(canvas) {
   }
   return api
 }
+
+// ---------- Attention 直播热力图 ----------
+
+/**
+ * Attention 直播：生成时逐 token 累积。
+ * 行 = 生成的 token（文本），列 = 上下文窗口 token（固定列数，右对齐补 0）。
+ * 默认累积 + 当前行（最后一行）高亮；悬停显示精确值。
+ */
+export function createAttnHeatmap(canvas, fixedCols = 16) {
+  let colLabels = [] // 列标签（长度 = fixedCols 的窗口）
+  let steps = []     // { rowText, dist }：生成 token 文本 + 注意力分布（长度 <= fixedCols）
+  let hover = null
+
+  const api = {
+    setContext(tokens, cols) { colLabels = tokens.slice(); if (cols) fixedCols = cols },
+    clear() { steps = [] },
+    pushStep(rowText, dist) { steps.push({ rowText, dist }) },
+    get length() { return steps.length },
+    draw() {
+      const { ctx, w, h } = fitCanvas(canvas)
+      const leftPad = 22
+      const botPad = 16
+      const n = steps.length
+      if (!n || !colLabels.length) {
+        ctx.fillStyle = '#6b6357'; ctx.font = '12px serif'; ctx.textAlign = 'center'
+        ctx.fillText('生成时，这里会实时显示模型在"看"哪些字', w / 2, h / 2)
+        return
+      }
+      const cellW = (w - leftPad) / fixedCols
+      const cellH = (h - botPad) / n
+      // 动态范围（只统计实际分布值）
+      let min = Infinity, max = -Infinity
+      for (const st of steps) for (const v of st.dist) { if (v < min) min = v; if (v > max) max = v }
+      const range = max - min || 1
+      for (let r = 0; r < n; r++) {
+        const dist = steps[r].dist
+        for (let c = 0; c < fixedCols; c++) {
+          const v = dist[c] ?? 0
+          const t = (v - min) / range
+          ctx.fillStyle = warmColor(t)
+          ctx.fillRect(leftPad + c * cellW, r * cellH, cellW + 0.5, cellH + 0.5)
+        }
+      }
+      // 网格 + 当前行高亮
+      ctx.strokeStyle = 'rgba(43,38,32,0.18)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      for (let c = 0; c <= fixedCols; c++) { ctx.moveTo(leftPad + c * cellW, 0); ctx.lineTo(leftPad + c * cellW, h - botPad) }
+      for (let r = 0; r <= n; r++) { ctx.moveTo(leftPad, r * cellH); ctx.lineTo(w, r * cellH) }
+      ctx.stroke()
+      ctx.strokeStyle = '#b3442c'
+      ctx.lineWidth = 2
+      ctx.strokeRect(leftPad, (n - 1) * cellH, w - leftPad, cellH)
+      // 行标签（生成 token 文本）
+      ctx.fillStyle = '#2b2620'
+      ctx.font = '10px serif'
+      ctx.textAlign = 'right'
+      for (let r = 0; r < n; r++) {
+        ctx.fillText(steps[r].rowText, leftPad - 3, r * cellH + cellH / 2 + 3)
+      }
+      // 列标签（上下文 token，稀疏显示避免重叠）
+      ctx.textAlign = 'center'
+      ctx.fillStyle = '#6b6357'
+      const skip = Math.max(1, Math.floor(cellW / 12))
+      for (let c = 0; c < fixedCols; c += skip) {
+        ctx.fillText(colLabels[c] ?? '', leftPad + c * cellW + cellW / 2, h - 4)
+      }
+      // 悬停显示精确值（可读性铁律）
+      if (hover && hover.r < n && hover.c < fixedCols) {
+        const dist = steps[hover.r].dist
+        const v = dist[hover.c] ?? 0
+        ctx.fillStyle = 'rgba(43,38,32,0.85)'
+        ctx.fillRect(6, 6, 190, 20)
+        ctx.fillStyle = '#faf7f0'
+        ctx.font = '12px monospace'
+        ctx.textAlign = 'left'
+        ctx.fillText(`「${colLabels[hover.c] ?? ''}」 权重 = ${v.toFixed(3)}`, 10, 20)
+      }
+    },
+    onHover(e) {
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      if (!steps.length || !colLabels.length) { hover = null; return }
+      const leftPad = 22
+      const botPad = 16
+      const cellW = (rect.width - leftPad) / fixedCols
+      const cellH = (rect.height - botPad) / steps.length
+      hover = { r: Math.floor(y / cellH), c: Math.floor((x - leftPad) / cellW) }
+    },
+  }
+  return api
+}
