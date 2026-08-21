@@ -16,6 +16,7 @@ import { FAQ } from './glossary.js'
 import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
 import { PIXEL_PATTERNS, gridToSeq, seqToGrid, renderGrid, attachDrawing, charToVal, valToChar } from './pixel.js'
 import { MELODIES, parseMelody, playMelody, playTone, renderMelody } from './melody.js'
+import { createGradientDescent, createWave } from './animation.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -153,6 +154,15 @@ app.innerHTML = `
         <div class="viz">
           <div class="viz-title">参数热力图 <span class="tag"><select id="hmMode" class="inline-select" title="热力图显示什么：权重=参数本身的值；梯度=参数当前被调整的方向和大小（训练中变化）"><option value="w">权重</option><option value="g">梯度</option></select></span></div>
           <canvas id="heatmap" class="canvas"></canvas>
+        </div>
+      </div>
+      <div class="viz">
+        <div class="viz-title">训练原理：梯度下降 <span class="tag">小球=参数 · 碗=loss 曲面 · 学习率=步长</span></div>
+        <canvas id="gdCanvas" class="canvas"></canvas>
+        <div class="row">
+          <label title="学习率=小球每步迈多大。小=慢但稳；大=震荡；太大=冲出碗口（训崩，和真实训练一样）">学习率 <input id="gdLr" type="range" min="0.01" max="1.5" step="0.01" value="0.1"></label>
+          <button id="gdStart" class="btn ghost" title="开始：小球沿梯度（最陡方向）滚向碗底">开始</button>
+          <button id="gdReset" class="btn ghost" title="重置回起点，换个学习率再试">重置</button>
         </div>
       </div>
     </section>
@@ -351,6 +361,7 @@ app.innerHTML = `
           <button id="freqPlayBtn" class="btn ghost">试听</button>
         </div>
         <canvas id="specViz" class="canvas"></canvas>
+        <canvas id="waveCanvas" class="canvas"></canvas>
       </div>
       <div class="teach">
         <h3>动手② 猜下一个音</h3>
@@ -1356,7 +1367,10 @@ function buildMelody(seq, name) {
   $('melPlayBtn').disabled = false
   $('melInfo').textContent = `${name || '自定义旋律'}已就绪 · ${seq.length} 个音`
 }
-// 动手：频率滑杆 + 频谱可视化（基频 + 泛音）
+// 动手：频率滑杆 + 频谱可视化（基频 + 泛音）+ 声波动画
+const wave = createWave($('waveCanvas'))
+wave.draw()
+wave.start()
 function renderSpectrum(canvas) {
   const dpr = window.devicePixelRatio || 1
   const w = canvas.clientWidth || 300
@@ -1381,6 +1395,7 @@ function renderSpectrum(canvas) {
 $('freqSlider').addEventListener('input', () => {
   $('freqVal').textContent = $('freqSlider').value + ' Hz'
   renderSpectrum($('specViz'))
+  wave.setFreq(parseFloat($('freqSlider').value))
 })
 $('freqPlayBtn').addEventListener('click', () => {
   playTone(parseFloat($('freqSlider').value))
@@ -1437,6 +1452,21 @@ $('melApplyBtn').addEventListener('click', () => {
 $('melTrainBtn').addEventListener('click', trainMelody)
 $('melGenBtn').addEventListener('click', genMelody)
 buildMelody(parseMelody(MELODIES[0].seq), MELODIES[0].name)
+
+// 教学动画：梯度下降（小球滚 loss 碗）
+const gd = createGradientDescent($('gdCanvas'))
+gd.draw()
+$('gdStart').addEventListener('click', () => gd.start())
+$('gdReset').addEventListener('click', () => gd.reset())
+$('gdLr').addEventListener('input', () => { gd.setLr(parseFloat($('gdLr').value)); gd.reset(); gd.start() })
+
+// 卡片 staggered 入场（教学节奏：一张张"翻开"）
+function staggerCards() {
+  document.querySelectorAll('.card').forEach((c, i) => {
+    c.style.animationDelay = (Math.min(i, 14) * 40) + 'ms'
+  })
+}
+staggerCards()
 
 // ---------- 启动 ----------
 // Tab 页签切换（文本/图像/语音）
