@@ -36,9 +36,8 @@ export function sampleWithAttn(params, idx, maxNewTokens, cfg, opts = {}) {
     for (let s = 0; s < T; s++) avg[s] /= count
     attnSteps.push(avg)
 
-    // 采样下一个 token（复用统一采样核心，支持 topK/topP）
-    const probs = sampleProbs(logits[logits.length - 1], opts)
-    probsSteps.push(probs)
+// 采样下一个 token（复用统一采样核心，支持 topK/topP/重复惩罚）
+    const probs = sampleProbs(logits[logits.length - 1], { ...opts, generated: seq })
     seq.push(sampleFrom(probs))
   }
   return { seq, attnSteps, probsSteps }

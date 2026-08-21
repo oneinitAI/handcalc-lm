@@ -130,6 +130,7 @@ app.innerHTML = `
         <button id="snapLoadBtn" class="btn ghost" title="读回最近保存的模型快照，恢复当时的权重和字符表">读快照</button>
       </div>
       <p class="muted" id="modelInfo"></p>
+      <div id="paramBreak" class="param-break"></div>
       <div class="train-progress">
         <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
         <span id="progressText" class="progress-text">—</span>
@@ -207,6 +208,8 @@ app.innerHTML = `
           <span class="hint">0=关 · 只保留概率最高的前 k 个</span>
           <label>top-p <input id="topp" value="1" size="4"></label>
           <span class="hint">1=关 · 保留累计概率达 p 的候选</span>
+          <label title="生成时压低已经出现过的字的概率，防止复读机式重复。1=关；1.2~1.5 防重复效果好">重复惩罚 <input id="repeatPenalty" value="1" size="4"></label>
+          <span class="hint">1=关 · 压低已出现的字，防重复</span>
         </div>
       </details>
       <details class="advanced">
@@ -331,6 +334,21 @@ function buildModel() {
   heatmap.set(hm, $('hmMode').value === 'g' ? 'wte 梯度' : 'wte 权重')
   heatmap.draw()
   $('modelInfo').textContent = `${chars.length} token（含角色标记）· ${paramCount(params)} 参数 · ${cfg.n_layer}层${cfg.n_head}头${cfg.n_embd}维`
+  // 参数量构成（教学：模型里各组件各占多少参数）
+  const pb = $('paramBreak')
+  if (pb) {
+    const nEmb = cfg.n_embd
+    const emb = cfg.vocab_size * nEmb
+    const pos = cfg.block_size * nEmb
+    const attn = (nEmb * 3 * nEmb + nEmb * nEmb) * cfg.n_layer
+    const mlp = (nEmb * 4 * nEmb + 4 * nEmb * nEmb) * cfg.n_layer
+    const norm = nEmb * 2 * cfg.n_layer * 2 + nEmb
+    const parts = [['词向量', emb], ['位置', pos], ['注意力', attn], ['前馈', mlp], ['归一化', norm]]
+    const total = parts.reduce((s, x) => s + x[1], 0)
+    pb.innerHTML = '<div class="param-title">参数量构成（悬停看每块）</div><div class="param-bar">' +
+      parts.map(([nm, n]) => `<div class="param-seg" title="${nm}: ${n}（${(n / total * 100).toFixed(1)}%）" style="width:${(n / total * 100).toFixed(1)}%">${n > total * 0.05 ? nm : ''}</div>`).join('') +
+      '</div>'
+  }
   $('genBtn').disabled = false
   // 字符表预览（可读性：模型认识哪些字）
   const vv = $('vocabView')
@@ -392,7 +410,7 @@ function updateProgress() {
   const p = Math.max(0, Math.min(1, (state.initLoss - cur) / (state.initLoss - target)))
   $('progressFill').style.width = (p * 100).toFixed(0) + '%'
   $('progressText').textContent = p >= 1 ? '已学到位' : `已学 ${(p * 100).toFixed(0)}%`
-  $('lossTag').textContent = `loss ${cur.toFixed(3)} · 初始 ${state.initLoss.toFixed(3)}`
+  $('lossTag').textContent = `loss ${cur.toFixed(3)} · 困惑度 ${Math.exp(cur).toFixed(1)} · 初始 ${state.initLoss.toFixed(3)}`
   // 彩蛋：欧拉手稿（loss 首次降到初始 50%）
   if (!state.egg50 && cur <= state.initLoss * 0.5) {
     state.egg50 = true
@@ -857,7 +875,7 @@ $('genBtn').addEventListener('click', () => {
     // 问答模式：<u>问题<a> → 模型生成回答
     const q = $('prompt').value.trim() || '你是谁'
     const p = qaPrompt(state.model.stoi, q)
-    const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1 }
+    const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1, repeatPenalty: parseFloat($('repeatPenalty').value) || 1 }
     const t0 = performance.now()
     const seq = sample(state.model.params, p, len, state.model.cfg, sampOpts)
     const msPerTok = (performance.now() - t0) / Math.max(1, seq.length - p.length)
@@ -877,7 +895,7 @@ $('genBtn').addEventListener('click', () => {
     // 续写模式（带 Attention 直播：文本流与热力图同节奏）
     const prompt = $('prompt').value
     const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
-    const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1 }
+    const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1, repeatPenalty: parseFloat($('repeatPenalty').value) || 1 }
     const t0 = performance.now()
     const { seq, attnSteps, probsSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, sampOpts)
     const msPerTok = (performance.now() - t0) / Math.max(1, attnSteps.length)

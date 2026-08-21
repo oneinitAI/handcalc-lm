@@ -481,6 +481,17 @@ textarea:focus-visible, input:focus-visible, select:focus-visible {
 .advanced .row { margin-top: 8px; }
 .advanced input { width: 56px; }
 
+/* 参数量构成条 */
+.param-break { margin-top: 8px; font-size: 11px; }
+.param-title { color: var(--ink-faint); margin-bottom: 4px; }
+.param-bar { display: flex; height: 16px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+.param-seg { height: 100%; text-align: center; font-size: 9px; line-height: 16px; color: #fffdf6; overflow: hidden; white-space: nowrap; cursor: default; }
+.param-seg:nth-child(1) { background: #8a5a44; }
+.param-seg:nth-child(2) { background: #b3442c; }
+.param-seg:nth-child(3) { background: #d66a4a; }
+.param-seg:nth-child(4) { background: #1f7a6d; }
+.param-seg:nth-child(5) { background: #9a9184; }
+
 /* --- 训练进度条（loss 收敛进度：墨槽 + 朱砂填充） --- */
 .train-progress { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .progress-track { flex: 1; height: 8px; background: #e8dfc9; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }

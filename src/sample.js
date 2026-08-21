@@ -7,14 +7,23 @@ import { forward } from './model.js'
 import { softmaxRows } from './matrix.js'
 
 /**
- * 采样核心：temperature 缩放 → topK/topP 裁剪 → softmax。
- * 返回概率分布（数组）。opts: { temperature, topK, topP }
+ * 采样核心：temperature 缩放 → 重复惩罚 → topK/topP 裁剪 → softmax。
+ * 返回概率分布（数组）。opts: { temperature, topK, topP, repeatPenalty, generated }
  */
 export function sampleProbs(logits, opts = {}) {
   const temperature = opts.temperature ?? 1.0
   const topK = opts.topK ?? null
   const topP = opts.topP ?? null
+  const repeatPenalty = opts.repeatPenalty ?? 1
   const scaled = logits.map((v) => v / temperature)
+
+  // 重复惩罚：压低已出现 token 的概率（防"复读机"）
+  if (repeatPenalty > 1 && opts.generated && opts.generated.length) {
+    for (const id of opts.generated) {
+      if (id === undefined || id >= scaled.length) continue
+      scaled[id] = scaled[id] > 0 ? scaled[id] / repeatPenalty : scaled[id] * repeatPenalty
+    }
+  }
 
   // topK：只保留概率最高的前 k 个候选
   if (topK && topK > 0 && topK < scaled.length) {
@@ -60,7 +69,7 @@ export function sample(params, idx, maxNewTokens, cfg, opts = {}) {
   for (let i = 0; i < maxNewTokens; i++) {
     const ctx = seq.length > cfg.block_size ? seq.slice(-cfg.block_size) : seq
     const { logits } = forward(params, ctx, null, cfg)
-    const probs = sampleProbs(logits[logits.length - 1], opts)
+    const probs = sampleProbs(logits[logits.length - 1], { ...opts, generated: seq })
     seq.push(sampleFrom(probs))
   }
   return seq
