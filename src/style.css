@@ -930,6 +930,23 @@ body::before {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================================
+ * wired-elements 手绘控件配色（演草纸）
+ * ============================================================ */
+wired-button {
+  --wired-text-color: var(--ink);
+  --wired-highlight: var(--accent);
+  font-family: var(--kai);
+  font-size: 15px;
+}
+wired-button[disabled] { opacity: 0.4; }
+wired-input, wired-textarea, wired-select, wired-slider {
+  --wired-text-color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+}
+wired-slider { --wired-highlight: var(--accent); }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }

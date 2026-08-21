@@ -22,6 +22,7 @@ import { initMultiModal } from './mm.js'
 import { initDict } from './dict.js'
 import { PAPERS, PAPER_CATS } from './papers.js'
 import { initParticles } from './particles.js'
+import 'wired-elements'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -552,6 +553,43 @@ app.innerHTML = `
 `
 
 const $ = (id) => document.getElementById(id)
+
+// ---------- wired-elements：手绘控件（按钮/滑杆/输入/select/textarea）----------
+function wireUp() {
+  const replace = (sel, tag, fn) => {
+    document.querySelectorAll(sel).forEach((el) => {
+      const w = document.createElement(tag)
+      if (el.id) w.id = el.id
+      fn(w, el)
+      el.replaceWith(w)
+    })
+  }
+  replace('button.btn', 'wired-button', (w, el) => {
+    w.textContent = el.textContent
+    w.disabled = el.disabled
+    if (el.title) w.setAttribute('title', el.title)
+    el.classList.forEach((c) => { if (c !== 'btn') w.classList.add(c) })
+  })
+  replace('input[type="range"]', 'wired-slider', (w, el) => {
+    w.value = el.value; w.min = el.min; w.max = el.max; w.step = el.step
+    if (el.title) w.setAttribute('title', el.title)
+  })
+  replace('select', 'wired-select', (w, el) => {
+    w.innerHTML = el.innerHTML
+    if (el.title) w.setAttribute('title', el.title)
+  })
+  replace('textarea', 'wired-textarea', (w, el) => {
+    w.value = el.value
+    if (el.placeholder) w.setAttribute('placeholder', el.placeholder)
+  })
+  replace('input:not([type="range"])', 'wired-input', (w, el) => {
+    w.value = el.value
+    if (el.placeholder) w.setAttribute('placeholder', el.placeholder)
+    if (el.size) w.setAttribute('size', el.size)
+    if (el.title) w.setAttribute('title', el.title)
+  })
+}
+wireUp()
 const lossChart = createLossChart($('lossChart'))
 const heatmap = createHeatmap($('heatmap'))
 $('heatmap').addEventListener('mousemove', (e) => { heatmap.onHover(e); heatmap.draw() })
