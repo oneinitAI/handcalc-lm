@@ -166,7 +166,46 @@ export function createHeatmap(canvas) {
   return api
 }
 
-// ---------- Attention 直播热力图 ----------
+// ---------- 语义空间散点（PCA 2D，每个 token 一个字）----------
+
+/** 渲染词向量 2D 投影：语义相近的字在空间里聚在一起 */
+export function renderEmbed(canvas, pts2d, labels) {
+  const dpr = window.devicePixelRatio || 1
+  const w = canvas.clientWidth || 340
+  const h = canvas.clientHeight || 220
+  canvas.width = w * dpr
+  canvas.height = h * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, w, h)
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (const [x, y] of pts2d) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x
+    if (y < minY) minY = y; if (y > maxY) maxY = y
+  }
+  const rngX = maxX - minX || 1
+  const rngY = maxY - minY || 1
+  const pad = 30
+  const toX = (x) => pad + ((x - minX) / rngX) * (w - pad * 2)
+  const toY = (y) => h - pad - ((y - minY) / rngY) * (h - pad * 2)
+  // 网格
+  ctx.strokeStyle = 'rgba(43,38,32,0.06)'
+  ctx.lineWidth = 1
+  for (let i = 0; i <= 4; i++) {
+    ctx.beginPath(); ctx.moveTo(pad + (i / 4) * (w - pad * 2), 0); ctx.lineTo(pad + (i / 4) * (w - pad * 2), h); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(0, (i / 4) * h); ctx.lineTo(w, (i / 4) * h); ctx.stroke()
+  }
+  // 点 + 标签
+  pts2d.forEach(([x, y], i) => {
+    const px = toX(x), py = toY(y)
+    ctx.fillStyle = '#b3442c'
+    ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#6b6357'
+    ctx.font = '11px serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(labels[i], px, py - 6)
+  })
+}
 
 /**
  * Attention 直播：生成时逐 token 累积。

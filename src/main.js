@@ -8,8 +8,9 @@ import { CORPUS, buildVocab, tokensToText, TOKEN_NAME, USER, ASSISTANT, END } fr
 import { createModel, paramCount } from './model.js'
 import { trainStep, createOptimizer } from './train.js'
 import { sample } from './sample.js'
-import { createLossChart, createHeatmap, createAttnHeatmap } from './ui.js'
+import { createLossChart, createHeatmap, createAttnHeatmap, renderEmbed } from './ui.js'
 import { sampleWithAttn } from './attn.js'
+import { pca2d, topSimilarPairs } from './embed.js'
 import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
 import { FAQ } from './glossary.js'
@@ -164,6 +165,16 @@ app.innerHTML = `
           <button id="gdStart" class="btn ghost" title="开始：小球沿梯度（最陡方向）滚向碗底">开始</button>
           <button id="gdReset" class="btn ghost" title="重置回起点，换个学习率再试">重置</button>
         </div>
+      </div>
+      <div class="viz">
+        <div class="viz-title">底层原理：语义空间 <span class="tag">词向量 2D 投影 · 相近的字聚在一起</span></div>
+        <canvas id="embedCanvas" class="canvas"></canvas>
+        <div class="row">
+          <button id="embedBtn" class="btn ghost" title="把当前模型的词向量 PCA 降到 2D 画出来——看它学到了哪些"语义簇"">看语义空间</button>
+          <button id="embedResetBtn" class="btn ghost" title="对比：用一个随机初始化的模型画同样的图——训练前是乱糟糟的一团">对比训练前</button>
+          <span class="hint" id="embedInfo"></span>
+        </div>
+        <div id="embedPairs" class="muted"></div>
       </div>
     </section>
 
@@ -1467,6 +1478,30 @@ function staggerCards() {
   })
 }
 staggerCards()
+
+// 底层原理：语义空间（词向量 PCA 投影——模型学到了什么）
+function showEmbed() {
+  if (!state.model) { alert('先构建并训练模型'); return }
+  const wte = state.model.params.wte.value
+  const itos = state.model.itos
+  renderEmbed($('embedCanvas'), pca2d(wte), itos)
+  const pairs = topSimilarPairs(wte, 8)
+  $('embedPairs').innerHTML = pairs.length
+    ? '最相似的词对：' + pairs.map((p) => `${itos[p.i]}~${itos[p.j]}（${p.s.toFixed(2)}）`).join(' · ')
+    : '（相似度都很低——语料太少或训练不够，还没形成明显语义）'
+  $('embedInfo').textContent = `当前模型 · ${itos.length} 个词向量`
+}
+function showEmbedRandom() {
+  if (!state.model) return
+  const size = SIZES[$('size').value]
+  const cfg = { vocab_size: state.model.itos.length, bias: true, ...size }
+  const { params } = createModel(cfg, 999)
+  renderEmbed($('embedCanvas'), pca2d(params.wte.value), state.model.itos)
+  $('embedPairs').innerHTML = '训练前（随机权重）：杂乱无章、没有语义结构——对比上面的训练后'
+  $('embedInfo').textContent = '随机初始化模型（对比用）'
+}
+$('embedBtn').addEventListener('click', showEmbed)
+$('embedResetBtn').addEventListener('click', showEmbedRandom)
 
 // ---------- 启动 ----------
 // Tab 页签切换（文本/图像/语音）
