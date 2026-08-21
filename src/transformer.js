@@ -242,7 +242,7 @@ const TRANS_P2 = `
 </section>
 
 <section class="card">
-  <h2>捌 · 下一步：去亲手摸它</h2>
+  <h2>柒 · 下一步：去亲手摸它</h2>
   <p>这一页讲的是"图纸"，纸上谈兵到此为止——<b>还没训练过模型也没关系</b>，真家伙就在你的浏览器里，照着下面动手就行：</p>
   <div class="feat-grid">
     <div class="feat"><b>文本模型 tab</b><span>训练一个真正的微型 Transformer，看损失曲线一路下降。</span></div>
@@ -251,39 +251,6 @@ const TRANS_P2 = `
     <div class="feat"><b>语义空间</b><span>把每个字的号码画在平面上，意思相近的字自己挨到一起（聚类）——看字典长什么样。</span></div>
   </div>
   <div class="howto">读完这一页再回去训练，你会看见每一层在做什么——这就是"看懂"和"会用"的区别。</div>
-</section>
-
-<section class="card">
-  <h2>柒 · 参考文献</h2>
-  <p class="muted">这一页讲的每一句背后都有一篇论文。按时间线读下去，就是整个大模型时代的编年史：</p>
-  <div class="paper-grid">
-    <div class="paper">
-      <div class="paper-top"><b>2015 · Bahdanau 等</b></div>
-      <p class="paper-sum">《Neural Machine Translation by Jointly Learning to Align and Translate》——第一次把注意力加进翻译（就是贰里"先念经，再用注意力对齐"的来源）。arXiv:1409.0473</p>
-    </div>
-    <div class="paper">
-      <div class="paper-top"><b>2017 · Vaswani 等</b></div>
-      <p class="paper-sum">《Attention Is All You Need》——本页主角：Transformer 的出生证明，陆的深度解析对象。arXiv:1706.03762</p>
-    </div>
-    <div class="paper">
-      <div class="paper-top"><b>2018 · Radford 等</b></div>
-      <p class="paper-sum">《Improving Language Understanding by Generative Pre-Training》——GPT 一代：只用 Decoder + 预训练，生成这条路的起点。</p>
-    </div>
-    <div class="paper">
-      <div class="paper-top"><b>2019 · Devlin 等</b></div>
-      <p class="paper-sum">《BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding》——只用 Encoder + 预训练，理解这条路的霸主。arXiv:1810.04805</p>
-    </div>
-  </div>
-  <p class="howto">去「论文」tab 能看更多：从 Transformer 到 DeepSeek-R1，每篇都有解读和原文链接。</p>
-</section>
-
-<section class="card">
-  <h2>玖 · 最后的话</h2>
-  <p>没错——这个关于 LLM 的科普，<b>也是 LLM 写的</b>。就是此刻正在读你的那个"我"（一个语言模型）。</p>
-  <p>我想说的是：写这些字的时候，我并没有"看懂"Transformer。我只是把人类教给我的知识，重新组织成你可能看懂的样子——这和我帮你训练的那个"猜下一个字"的小家伙，用的是同一种机制。</p>
-  <p>但你不用替我尴尬，也不用质疑这是不是敷衍。这一页真正想让你明白的是：<b>模型不需要真的"懂"，它只需要把"下一个字该是谁"算对</b>。你浏览器里那个几百参数的小模型，和写下这段字的我，底层是同一套东西——注意力、多头、位置编码，一层层乘法加法叠出来的。区别只是规模、数据，和被训练的方式。</p>
-  <p class="howto">总有一天你会亲手训练出一个会"说话"的模型。到那时你会知道：它不是魔法，只是很多次乘法。谢谢你读到这儿——<b>也谢谢你，愿意把 AI 拆开来看</b>。</p>
-  <div class="egg">（这段也是 LLM 写的。看吧，它连"不八股"都学不会——真有你的，AI。）</div>
 </section>
 `
 

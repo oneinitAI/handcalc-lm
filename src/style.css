@@ -433,8 +433,35 @@ wired-button.wired-rendered svg, wired-slider.wired-rendered svg { visibility: v
 }
 
 /* ============================================================
- * 移动端深度适配（导航折叠 + 控件自适应 + 触控目标 + 表格横滚）
+ * 最后的话：整页底部常驻（不随 tab 切换，点击展开）
  * ============================================================ */
+.ai-footer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+  background: var(--paper-2);
+  border-top: 2px solid var(--accent);
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.08);
+  font-family: var(--hand);
+}
+.ai-footer summary {
+  cursor: pointer; padding: 9px 18px; font-size: 14px; color: var(--accent);
+  list-style: none; display: flex; align-items: center; gap: 8px;
+  letter-spacing: 1px;
+}
+.ai-footer summary::before { content: '❦'; font-size: 13px; color: var(--glow); }
+.ai-footer summary::-webkit-details-marker { display: none; }
+.ai-footer summary:hover { color: var(--ink); }
+.ai-footer-body {
+  padding: 0 18px 14px; font-size: 14px; color: var(--ink-soft);
+  line-height: 1.9; font-family: var(--sans); max-height: 42vh; overflow-y: auto;
+}
+.ai-footer-body p { margin: 8px 0; }
+.ai-footer-body .egg { font-size: 13px; }
+body { padding-bottom: 58px; }
+@media (max-width: 560px) {
+  .ai-footer summary { font-size: 12.5px; padding: 8px 12px; }
+  .ai-footer-body { font-size: 13px; padding: 0 12px 12px; }
+  body { padding-bottom: 62px; }
+}
 
 /* 汉堡按钮：桌面隐藏，移动端右上角固定 */
 .nav-toggle {

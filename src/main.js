@@ -557,6 +557,17 @@ app.innerHTML = `
       <div id="paperGrid" class="paper-grid"></div>
     </div>
   </main>
+  <aside class="ai-footer">
+    <details id="aiFooter">
+      <summary>没错，这个关于 LLM 的科普，也是 LLM 写的…</summary>
+      <div class="ai-footer-body">
+        <p>写这些字的时候，我并没有"看懂"Transformer。我只是把人类教给我的知识，重新组织成你可能看懂的样子——这和我帮你训练的那个"猜下一个字"的小家伙，用的是同一种机制。</p>
+        <p>这一页真正想让你明白的是：<b>模型不需要真的"懂"，它只需要把"下一个字该是谁"算对</b>。你浏览器里那个几百参数的小模型，和写下这段字的我，底层是同一套东西——注意力、多头、位置编码，一层层乘法加法叠出来的。区别只是规模、数据，和被训练的方式。</p>
+        <p>总有一天你会亲手训练出一个会"说话"的模型。到那时你会知道：它不是魔法，只是很多次乘法。谢谢你读到这儿——也谢谢你，愿意把 AI 拆开来看。</p>
+        <div class="egg">（这段也是 LLM 写的。看吧，它连"不八股"都学不会——真有你的，AI。）</div>
+      </div>
+    </details>
+  </aside>
 `
 
 const $ = (id) => document.getElementById(id)
@@ -1916,6 +1927,51 @@ function showEmbedRandom() {
 $('embedBtn').addEventListener('click', showEmbed)
 $('embedResetBtn').addEventListener('click', showEmbedRandom)
 
+// ---------- 参考文献（每个板块底部，统一格式：年份 · 作者 / 标题 / 一句话） ----------
+const REFS = {
+  text: [
+    ['2017', 'Vaswani 等', 'Attention Is All You Need', 'Transformer 出生证明——你训练的模型就是它的微型版。arXiv:1706.03762'],
+    ['2018', 'Radford 等', 'Improving Language Understanding by Generative Pre-Training', 'GPT 一代：预训练 + 微调的开端，本页三阶段（预训练/SFT/DPO）的祖师爷。'],
+    ['2022', 'Ouyang 等', 'Training language models to follow instructions with human feedback', 'InstructGPT：用人类反馈对齐模型——对齐阶段的真实出处。'],
+    ['2023', 'Rafailov 等', 'Direct Preference Optimization', 'DPO：跳过奖励模型直接偏好优化——你点的"哪个更好"就是它。arXiv:2305.18290'],
+  ],
+  image: [
+    ['2016', 'van den Oord 等', 'Pixel Recurrent Neural Networks', '把图像当像素序列"一个一个猜"的鼻祖——本项目图像模型就是这个思路。'],
+    ['2021', 'Dosovitskiy 等', 'An Image is Worth 16x16 Words', 'ViT：把图片切成小块当"词"喂给 Transformer——图像版"猜下一个字"。'],
+  ],
+  voice: [
+    ['2016', 'van den Oord 等', 'WaveNet', '把声音当波形"一个点一个点生成"——音频版的"猜下一个字"。'],
+    ['2022', 'Radford 等', 'Robust Speech Recognition via Large-Scale Weak Supervision', 'Whisper：语音转文字的大规模自监督——音高序列思路的远方亲戚。'],
+  ],
+  multi: [
+    ['2021', 'Radford 等', 'Learning Transferable Visual Models From Natural Language Supervision', 'CLIP：文本和图像进同一个表示空间——多模态对齐的开山之作。'],
+    ['2023', 'Google', 'Gemini: A Family of Highly Capable Multimodal Models', '原生多模态：一个 Transformer 直接吃文本+图像+音频——本项目多模态 tab 的思路来源。'],
+  ],
+  trans: [
+    ['2015', 'Bahdanau 等', 'Neural Machine Translation by Jointly Learning to Align and Translate', '第一次把注意力加进翻译——"先念经，再用注意力对齐"的来源。arXiv:1409.0473'],
+    ['2017', 'Vaswani 等', 'Attention Is All You Need', '本页主角：只用注意力，扔掉循环和卷积。arXiv:1706.03762'],
+    ['2018', 'Radford 等', 'Improving Language Understanding by Generative Pre-Training', 'GPT 一代：只用 Decoder + 预训练，生成这条路的起点。'],
+    ['2019', 'Devlin 等', 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding', '只用 Encoder + 预训练，理解这条路的霸主。arXiv:1810.04805'],
+  ],
+  frontier: [
+    ['2017', 'Shazeer 等', 'Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer', 'MoE：把模型拆成专家，每个 token 只激活少数——DeepSeek 同款。'],
+    ['2021', 'Su 等', 'RoFormer: Enhanced Transformer with Rotary Position Embedding', 'RoPE：旋转位置编码——让上下文窗口从 4K 涨到 100K+ 的关键。'],
+    ['2022', 'Dao 等', 'FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness', 'Flash Attention：重写注意力计算，读写省几倍——训练推理都变快。'],
+  ],
+}
+function renderRefs() {
+  for (const tab in REFS) {
+    const panel = document.getElementById('tab-' + tab)
+    if (!panel) continue
+    const sec = document.createElement('section')
+    sec.className = 'card'
+    sec.innerHTML = '<h2>附 · 参考文献</h2>' + REFS[tab].map((r) =>
+      `<div class="paper"><div class="paper-top"><b>${r[0]} · ${r[1]}</b></div><p class="paper-sum">《${r[2]}》${r[3]}</p></div>`
+    ).join('')
+    panel.appendChild(sec)
+  }
+}
+
 // ---------- 启动 ----------
 // Tab 页签切换（文本/图像/语音）
 document.querySelectorAll('.tab-btn').forEach((b) => {
@@ -1945,6 +2001,7 @@ renderGlossary()
 initNotes()
 initTransformer($('transRoot'))
 initMicroscopeUI($('microscopeRoot'), () => state.model)
+renderRefs()
 
 // 移动端：汉堡按钮展开/收起导航抽屉
 const _navToggle = $('navToggle')
