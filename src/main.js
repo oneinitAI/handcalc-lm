@@ -10,6 +10,7 @@ import { trainStep, createOptimizer } from './train.js'
 import { sample } from './sample.js'
 import { createLossChart, createHeatmap } from './ui.js'
 import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
+import { dpoTrainStep, makeRefModel } from './dpo.js'
 
 const SIZES = {
   tiny:   { n_layer: 1, n_head: 1, n_embd: 8,  block_size: 8 },
@@ -27,6 +28,10 @@ const state = {
   mode: 'cont', // 'cont' 续写 | 'qa' 问答
   snap: null,   // 权重快照（微调前，用于对比）
   sftData: null,
+  prefs: [],    // DPO 偏好对 [{x, yw, yl}]
+  pair: null,   // 当前待点选的回答对 {a, b}（token 数组）
+  refParams: null, // DPO 参考模型（冻结）
+  dpoOpt: null,  // DPO 专用优化器
 }
 
 // ---------- DOM ----------
@@ -106,6 +111,33 @@ app.innerHTML = `
         <label>长度 <input id="len" value="32" size="4"></label>
       </div>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
+    </section>
+
+    <section class="card">
+      <h2>伍 · 偏好对齐（DPO）</h2>
+      <p class="muted">让模型生成两个回答，你告诉它哪个更好——它会学会偏向你的偏好。这就是 DPO（2023 年论文算法），也是 OpenAI 标注员做的真实工作。</p>
+      <div class="row">
+        <input id="dpoQ" value="你好" size="14">
+        <button id="genPairBtn" class="btn">生成两个回答</button>
+      </div>
+      <div class="pair" id="pairBox" hidden>
+        <div class="answer">
+          <div id="ansA" class="ans-text">（回答 A）</div>
+          <button id="pickABtn" class="btn ghost">这个更好</button>
+        </div>
+        <div class="answer">
+          <div id="ansB" class="ans-text">（回答 B）</div>
+          <button id="pickBBtn" class="btn ghost">这个更好</button>
+        </div>
+      </div>
+      <p class="muted" id="prefInfo">已收集 0 对偏好</p>
+      <div class="row">
+        <label>β <input id="dpoBeta" value="0.5" size="4"></label>
+        <label>步数 <input id="dpoSteps" value="300" size="5"></label>
+        <button id="dpoBtn" class="btn" disabled>开始 DPO 训练</button>
+        <button id="dpoResetBtn" class="btn ghost">清空偏好</button>
+      </div>
+      <p class="muted" id="dpoInfo"></p>
     </section>
   </main>
 `
@@ -265,6 +297,77 @@ $('snapBtn').addEventListener('click', () => { if (state.model) snapshotWeights(
 $('cmpBtn').addEventListener('click', toggleCompare)
 $('modeCont').addEventListener('click', () => setMode('cont'))
 $('modeQa').addEventListener('click', () => setMode('qa'))
+
+// ---------- DPO 偏好对齐 ----------
+function genAnswer(q, temp) {
+  const p = qaPrompt(state.model.stoi, q)
+  const seq = sample(state.model.params, p, 24, state.model.cfg, { temperature: temp })
+  let end = seq.length
+  for (let i = p.length; i < seq.length; i++) {
+    if (state.model.itos[seq[i]] === '\u0003') { end = i; break } // <e> 回答结束
+  }
+  return seq.slice(p.length, end)
+}
+
+function showPair(a, b) {
+  state.pair = { a, b }
+  $('pairBox').hidden = false
+  $('ansA').textContent = tokensToText(state.model.itos, a) || '（空回答）'
+  $('ansB').textContent = tokensToText(state.model.itos, b) || '（空回答）'
+}
+
+function pick(prefIsA) {
+  const { a, b } = state.pair
+  const x = qaPrompt(state.model.stoi, $('dpoQ').value.trim() || '你好')
+  state.prefs.push(prefIsA ? { x, yw: a, yl: b } : { x, yw: b, yl: a })
+  $('prefInfo').textContent = `已收集 ${state.prefs.length} 对偏好`
+  $('dpoBtn').disabled = false
+  $('dpoInfo').textContent = `已记偏好：你选了「${tokensToText(state.model.itos, prefIsA ? a : b)}」`
+}
+
+$('genPairBtn').addEventListener('click', () => {
+  if (!state.model) { alert('请先构建模型并训练'); return }
+  const q = $('dpoQ').value.trim() || '你好'
+  showPair(genAnswer(q, 0.8), genAnswer(q, 1.2))
+})
+$('pickABtn').addEventListener('click', () => pick(true))
+$('pickBBtn').addEventListener('click', () => pick(false))
+
+$('dpoBtn').addEventListener('click', () => {
+  if (!state.prefs.length) return
+  if (!state.refParams) state.refParams = makeRefModel(state.model.params) // 冻结当前为参考模型
+  if (!state.dpoOpt) state.dpoOpt = createOptimizer(state.model.params, { type: 'adam', lr: 0.0005 })
+  const beta = parseFloat($('dpoBeta').value) || 0.5
+  const steps = parseInt($('dpoSteps').value) || 300
+  const total = steps * state.prefs.length
+  let done = 0
+  let lastLoss = 0
+  const loop = () => {
+    if (done >= total) {
+      $('dpoInfo').textContent = `DPO 完成（${steps} 步 × ${state.prefs.length} 对）· 模型已偏向你的偏好`
+      heatmap.draw()
+      return
+    }
+    const k = 20
+    for (let i = 0; i < k && done < total; i++) {
+      const pair = state.prefs[Math.floor(Math.random() * state.prefs.length)]
+      lastLoss = dpoTrainStep(state.model.params, state.refParams, state.model.cfg, state.dpoOpt, pair.x, pair.yw, pair.yl, beta).loss
+      done++
+    }
+    $('dpoInfo').textContent = `DPO 训练中… ${done}/${total}  loss=${lastLoss.toFixed(4)}`
+    requestAnimationFrame(loop)
+  }
+  loop()
+})
+
+$('dpoResetBtn').addEventListener('click', () => {
+  state.prefs = []
+  state.pair = null
+  $('prefInfo').textContent = '已收集 0 对偏好'
+  $('pairBox').hidden = true
+  $('dpoBtn').disabled = true
+  $('dpoInfo').textContent = ''
+})
 
 // ---------- 语料选择 ----------
 function setCorpus(text, title) {
