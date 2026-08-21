@@ -13,7 +13,7 @@ import { sampleWithAttn } from './attn.js'
 import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
 import { GLOSSARY, FAQ } from './glossary.js'
-import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
+import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
 const SIZES = {
@@ -44,6 +44,7 @@ const state = {
   initLoss: null,     // 初始 loss（前 10 步平均），进度条基准
   stopNotified: false, // 自动停止提示标志
   genHistory: [],   // 生成历史（内容积累）
+  egg50: false,     // 欧拉彩蛋触发标志
   corpusIds: null,  // 语料字符数组（预训练数据源）
   sftSeq: null,     // 问答对训练序列（微调数据源，存在则混合训练）
   mixRatio: 0.5,    // 微调时问答数据占比（0=纯语料，1=纯问答）
@@ -133,6 +134,11 @@ app.innerHTML = `
       <h2>叁 · 微调（SFT）</h2>
       <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。</p>
       <div class="corpus-pick">
+        <select id="qaSet" class="inline-select">
+          <option value="general">通用对话</option>
+          <option value="about">关于手算LM</option>
+          <option value="fun">趣味问答</option>
+        </select>
         <button id="loadQaBtn" class="chip">载入示例问答</button>
         <span class="hint">每行一条「问题 / 回答」，斜杠分隔</span>
       </div>
@@ -214,6 +220,7 @@ app.innerHTML = `
         </div>
       </div>
       <p class="muted" id="prefInfo">已收集 0 对偏好</p>
+      <div id="prefList" class="pref-list"></div>
       <div class="row">
         <label>β <input id="dpoBeta" value="0.5" size="4"></label>
         <label>步数 <input id="dpoSteps" value="300" size="5"></label>
@@ -340,6 +347,11 @@ function updateProgress() {
   $('progressFill').style.width = (p * 100).toFixed(0) + '%'
   $('progressText').textContent = p >= 1 ? '已学到位' : `已学 ${(p * 100).toFixed(0)}%`
   $('lossTag').textContent = `loss ${cur.toFixed(3)} · 初始 ${state.initLoss.toFixed(3)}`
+  // 彩蛋：欧拉手稿（loss 首次降到初始 50%）
+  if (!state.egg50 && cur <= state.initLoss * 0.5) {
+    state.egg50 = true
+    $('modelInfo').textContent = ($('modelInfo').textContent || '') + ' ✦ 欧拉的手稿在向你致意：e^{iπ}+1=0'
+  }
 }
 
 /** 自动停止检测：loss 到 25% 或停滞 300 步 */
@@ -513,7 +525,9 @@ function updateStage() {
 }
 
 $('loadQaBtn').addEventListener('click', () => {
-  $('qaList').value = DEFAULT_QA.map((p) => `${p.q} / ${p.a}`).join('\n')
+  const set = QA_SETS[$('qaSet').value] || QA_SETS.general
+  $('qaList').value = set.pairs.map((p) => `${p.q} / ${p.a}`).join('\n')
+  $('sftInfo').textContent = `已载入「${set.name}」${set.pairs.length} 条问答，可编辑后微调`
 })
 $('sftBtn').addEventListener('click', () => {
   if (!state.model) buildModel()
@@ -561,6 +575,15 @@ function pick(prefIsA) {
   $('prefInfo').textContent = `已收集 ${state.prefs.length} 对偏好`
   $('dpoBtn').disabled = false
   $('dpoInfo').textContent = `已记偏好：你选了「${tokensToText(state.model.itos, prefIsA ? a : b)}」`
+  renderPrefs()
+}
+
+/** 偏好历史列表 */
+function renderPrefs() {
+  const list = $('prefList')
+  if (!list) return
+  list.innerHTML = state.prefs.map((p, i) =>
+    `<div class="pref-item">#${i + 1} 偏好「${tokensToText(state.model.itos, p.yw)}」</div>`).join('')
 }
 
 $('genPairBtn').addEventListener('click', () => {
@@ -611,6 +634,7 @@ $('dpoResetBtn').addEventListener('click', () => {
   state.prefs = []
   state.pair = null
   $('prefInfo').textContent = '已收集 0 对偏好'
+  $('prefList').innerHTML = ''
   $('pairBox').hidden = true
   $('dpoBtn').disabled = true
   $('dpoInfo').textContent = ''
