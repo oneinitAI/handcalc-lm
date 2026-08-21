@@ -696,7 +696,7 @@ textarea, input, select, .canvas, .pixel-canvas, .dict-canvas, .ms-calc, .answer
 .card:nth-child(3n+1) { transform: rotate(-1.4deg); }
 .card:nth-child(3n) { transform: rotate(0.9deg); }
 .card:nth-child(3n+2) { transform: rotate(-0.5deg); }
-.card:hover { transform: perspective(1000px) rotateX(1.5deg) rotateY(-1.5deg) rotate(0deg) translateY(-4px); }
+.card:hover { transform: rotate(0deg) translateY(-2px); background: rgba(250, 245, 232, 0.25); }
 
 /* 章节标题：斜切 + 巨型 */
 .card h2 { transform: skewX(-6deg); font-size: 24px; letter-spacing: 3px; }
