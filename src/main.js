@@ -79,6 +79,7 @@ app.innerHTML = `
       <button class="tab-btn" data-tab="voice">语音模型</button>
       <button class="tab-btn" data-tab="multi">多模态</button>
       <button class="tab-btn" data-tab="dict">词典</button>
+      <button class="tab-btn" data-tab="frontier">前沿</button>
     </nav>
     <div id="tab-text" class="tab-panel on">
     <header class="masthead">
@@ -491,6 +492,49 @@ app.innerHTML = `
         <p>每个术语都有<b>动画解释</b>——看动画理解概念，比读定义快十倍。</p>
       </div>
       <div id="dictRoot"></div>
+    </div>
+    <div id="tab-frontier" class="tab-panel">
+      <div class="teach">
+        <h3>让模型更快：推理加速手册</h3>
+        <p>真实世界的大模型推理有一整套加速技术——每一条都在解决"算力不够、等待太久"。</p>
+        <div class="feat-grid">
+          <div class="feat"><b>KV 缓存</b><span>算过一遍的键值存起来，后续生成直接复用——提速数倍。</span></div>
+          <div class="feat"><b>量化 Quantization</b><span>权重从 32 位压到 8/4 位，模型变小变快 2~4 倍，损失一点精度。</span></div>
+          <div class="feat"><b>蒸馏 Distillation</b><span>大模型当老师，教小模型模仿自己的输出——小模型继承大能力。</span></div>
+          <div class="feat"><b>投机解码</b><span>小模型先打草稿，大模型批量验证——"猜得快，验得准"。</span></div>
+          <div class="feat"><b>Flash Attention</b><span>重写注意力计算，减少内存读写——训练推理都快数倍。</span></div>
+          <div class="feat"><b>连续批处理</b><span>多个请求的 token 打包一起算，GPU 不空转。</span></div>
+        </div>
+      </div>
+      <div class="teach">
+        <h3>动手：量化（把权重变"粗糙"）</h3>
+        <p>真实模型用 32 位小数存权重；量化到 8/4 位让模型变小变快，但精度有损。拖滑杆把<b>你训练好的模型</b>压缩，看生成变化。</p>
+        <div class="row">
+          <label title="权重的存储精度。FP32=精确；INT8/INT4=粗糙但小、快">精度 <input id="quantBits" type="range" min="4" max="32" step="1" value="32"></label>
+          <span id="quantVal" class="hint">FP32</span>
+          <button id="quantGenBtn" class="btn ghost" title="用当前精度量化当前模型的权重，再生成对比">用当前精度生成</button>
+        </div>
+        <div id="quantOut" class="gen">（先训练文本模型，再拖精度到低档生成对比）</div>
+        <div id="quantInfo" class="muted"></div>
+      </div>
+      <div class="teach">
+        <h3>前沿架构与引擎</h3>
+        <p><b>MoE（混合专家）</b>：把模型拆成很多"专家"，每个 token 只激活少数几个——同样的参数量，算得更少（DeepSeek 用的就是这个）。<b>长上下文</b>：RoPE 位置编码 + 稀疏注意力，让窗口从 4K 涨到 100K+。<b>推理引擎</b>：vLLM / TensorRT-LLM 把上面所有加速技术打包，服务商批量部署用它们。</p>
+      </div>
+      <div class="teach">
+        <h3>大模型服务商（谁在提供"猜下一个字"）</h3>
+        <p>你训练的是几百参数的玩具——下面这些是把它放大一亿倍、部署成产品的公司。</p>
+        <div class="feat-grid">
+          <div class="feat"><b>DeepSeek 深度求索</b><span>开源 + MoE 架构，推理便宜，靠"深度思考"出圈。</span></div>
+          <div class="feat"><b>豆包 字节·火山方舟</b><span>国内生态完整，免费额度大，工具/Agent 能力强。</span></div>
+          <div class="feat"><b>Kimi 月之暗面</b><span>超长上下文起家（200 万字），擅长长文档。</span></div>
+          <div class="feat"><b>通义千问 阿里</b><span>开源 Qwen 系列，覆盖全尺寸，出海活跃。</span></div>
+          <div class="feat"><b>文心一言 百度 / GLM 智谱</b><span>国内老牌与清华系，各有生态与场景。</span></div>
+          <div class="feat"><b>OpenAI GPT</b><span>国际标杆，生态最大，ChatGPT 家喻户晓。</span></div>
+          <div class="feat"><b>Anthropic Claude</b><span>强调安全与长文本，编程（Claude Code）很强。</span></div>
+          <div class="feat"><b>Google Gemini</b><span>多模态见长，原生支持图片视频理解。</span></div>
+        </div>
+      </div>
     </div>
   </main>
 `
@@ -1630,6 +1674,36 @@ initMultiModal({ $, createModel, createOptimizer, trainStep, sample, CORPUS, PIX
 
 // 动画词典（术语用动画解释）
 initDict($('dictRoot'))
+
+// 动手：量化（把当前模型权重降精度，看生成变化）
+$('quantBits').addEventListener('input', () => {
+  const b = +$('quantBits').value
+  $('quantVal').textContent = b >= 32 ? 'FP32' : `INT${b}${b <= 4 ? '（很粗糙）' : ''}`
+})
+$('quantGenBtn').addEventListener('click', () => {
+  if (!state.model) { alert('先构建并训练文本模型'); return }
+  const bits = +$('quantBits').value
+  const qp = JSON.parse(JSON.stringify(state.model.params.value))
+  if (bits < 32) {
+    const maxV = Math.pow(2, bits - 1) - 1
+    for (const k in qp) {
+      const m = qp[k].value
+      for (const row of m) for (let i = 0; i < row.length; i++) {
+        const v = Math.max(-1, Math.min(1, row[i]))
+        row[i] = Math.round(v * maxV) / maxV
+      }
+    }
+  }
+  const prompt = $('prompt').value || '月光'
+  const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
+  const seq = sample(qp, p, 24, state.model.cfg, { temperature: 0.8 })
+  const text = tokensToText(state.model.itos, seq)
+  $('quantOut').textContent = text
+  const ratio = bits >= 32 ? 1 : 32 / bits
+  $('quantInfo').textContent = bits >= 32
+    ? 'FP32（原始精度）：占空间 100%，质量最高'
+    : `INT${bits}：权重被舍入到 ${Math.pow(2, bits - 1) - 1} 级 · 理论体积约 ${(100 / ratio).toFixed(0)}%（快 ${ratio.toFixed(1)} 倍）· 看生成是否变"糙"`
+})
 
 // 卡片 staggered 入场（教学节奏：一张张"翻开"）
 function staggerCards() {

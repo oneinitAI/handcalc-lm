@@ -484,6 +484,14 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 [data-theme="dark"] .dict-canvas { background: #1b1814; }
 @media (max-width: 560px) { .dict-grid { grid-template-columns: 1fr; } }
 
+/* 前沿：加速卡 / 服务商卡 */
+.feat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.feat { border: 1px solid var(--line); border-radius: 3px; padding: 8px 12px; font-size: 13px; background: rgba(250, 245, 232, 0.4); }
+.feat b { color: var(--accent); display: block; margin-bottom: 2px; }
+.feat span { color: var(--ink-soft); font-size: 12px; line-height: 1.7; display: block; }
+[data-theme="dark"] .feat { background: rgba(35, 32, 25, 0.6); }
+@media (max-width: 560px) { .feat-grid { grid-template-columns: 1fr; } }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }
