@@ -12,6 +12,7 @@ import { createLossChart, createHeatmap, createAttnHeatmap } from './ui.js'
 import { sampleWithAttn } from './attn.js'
 import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
+import { GLOSSARY, FAQ } from './glossary.js'
 import { DEFAULT_QA, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -224,6 +225,8 @@ app.innerHTML = `
     </section>
 
     <div id="microscopeRoot"></div>
+
+    <div id="glossaryRoot"></div>
   </main>
 `
 
@@ -811,7 +814,24 @@ function initNotes() {
   })
 }
 
+// ---------- 术语表 + 常见问题 ----------
+function renderGlossary() {
+  const root = $('glossaryRoot')
+  if (!root) return
+  root.innerHTML = `
+    <section class="card">
+      <h2>柒 · 术语表</h2>
+      <div class="glossary">${GLOSSARY.map((g) => `<div class="gloss-item"><b>${g.term}</b>${g.desc}</div>`).join('')}</div>
+    </section>
+    <section class="card">
+      <h2>捌 · 常见问题</h2>
+      ${FAQ.map((f) => `<details class="faq"><summary>${f.q}</summary><div class="faq-a">${f.a}</div></details>`).join('')}
+    </section>
+  `
+}
+
 // ---------- 启动 ----------
+renderGlossary()
 initNotes()
 initMicroscopeUI($('microscopeRoot'), () => state.model)
 
