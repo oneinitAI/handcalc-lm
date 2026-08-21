@@ -12,6 +12,7 @@ import { createLossChart, createHeatmap, createAttnHeatmap, renderEmbed } from '
 import { sampleWithAttn } from './attn.js'
 import { pca2d, topSimilarPairs } from './embed.js'
 import { initMicroscopeUI } from './microscope-ui.js'
+import { initTransformer, redrawTrans } from './transformer.js'
 import { NOTES } from './notes.js'
 import { FAQ } from './glossary.js'
 import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
@@ -82,6 +83,7 @@ app.innerHTML = `
       <button class="tab-btn" data-tab="image">图像模型</button>
       <button class="tab-btn" data-tab="voice">语音模型</button>
       <button class="tab-btn" data-tab="multi">多模态</button>
+      <button class="tab-btn" data-tab="trans">Transformer</button>
       <button class="tab-btn" data-tab="dict">词典</button>
       <button class="tab-btn" data-tab="frontier">前沿</button>
       <button class="tab-btn" data-tab="papers">论文</button>
@@ -490,6 +492,9 @@ app.innerHTML = `
         <h3>动手④ 多模态应用与模态标记</h3>
         <p>真实世界的多模态模型：<b>CLIP</b>（把图和文字对齐到同一向量空间）、<b>Whisper</b>（语音→文字）、<b>GPT-4V</b>（看图+读文+听声）。它们背后都是同一个思路：<b>给不同模态加"标记"，让一个 Transformer 知道自己在处理哪种序列</b>——你刚才训练的混合模型就是这个机制。</p>
       </div>
+    </div>
+    <div id="tab-trans" class="tab-panel">
+      <div id="transRoot"></div>
     </div>
     <div id="tab-dict" class="tab-panel">
       <div class="teach">
@@ -1926,6 +1931,7 @@ document.querySelectorAll('.tab-btn').forEach((b) => {
         pixLossChart.draw(); melLossChart.draw()
         if (state.pix) { renderGrid($('pixTarget'), state.pix.grid); renderGrid($('pixOut'), seqToGrid(Array(256).fill(0))) }
         if (state.mel) { renderMelody($('melViz'), state.mel.seq); renderMelody($('melGenViz'), state.mel.composed || []) }
+        redrawTrans()
       } catch (e) { /* 忽略未就绪 */ }
     }, 60)
   })
@@ -1933,6 +1939,7 @@ document.querySelectorAll('.tab-btn').forEach((b) => {
 renderAch()
 renderGlossary()
 initNotes()
+initTransformer($('transRoot'))
 initMicroscopeUI($('microscopeRoot'), () => state.model)
 
 // 彩蛋：深夜引言（00:00-04:00 打开页面）
