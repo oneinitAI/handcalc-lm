@@ -59,3 +59,23 @@ export const CORPUS = [
     text: '学如逆水行舟，不进则退。路漫漫其修远兮，吾将上下而求索。天行健，君子以自强不息。不积跬步，无以至千里。千里之行，始于足下。知识就是力量。我思故我在。失败是成功之母。世界上只有一种真正的英雄主义，那就是认清生活的真相之后依然热爱生活。把每一天都当作最后一天来过。',
   },
 ]
+
+// 特殊角色标记（SFT 用），用控制字符避免与正文冲突
+export const USER = '\u0001'
+export const ASSISTANT = '\u0002'
+export const END = '\u0003'
+export const SPECIAL = [USER, ASSISTANT, END]
+export const TOKEN_NAME = { [USER]: '<u>', [ASSISTANT]: '<a>', [END]: '<e>' }
+
+/** 从文本构建字符表（vocab 固定预留特殊 token 在前） */
+export function buildVocab(text) {
+  const chars = [...new Set(text.split(''))].sort()
+  const all = [...SPECIAL, ...chars]
+  const stoi = Object.fromEntries(all.map((c, i) => [c, i]))
+  return { chars: all, stoi, itos: all, vocab: all.length }
+}
+
+/** token 序列转可读文本（特殊 token 显示为 <u>/<a>/<e>） */
+export function tokensToText(itos, ids) {
+  return ids.map((i) => TOKEN_NAME[itos[i]] ?? itos[i]).join('')
+}
