@@ -25,9 +25,9 @@ export function initParticles(canvas) {
       y: Math.random() * h,
       v: 0.15 + Math.random() * 0.7,
       s: 9 + Math.random() * 14,
-      c: Math.random() < 0.5 ? '0,229,195' : '255,61,90',
+      c: Math.random() < 0.5 ? '31,122,109' : '179,68,44', // 青磷 / 朱砂（演草纸淡色）
       ch: chars[Math.floor(Math.random() * chars.length)],
-      a: 0.05 + Math.random() * 0.18,
+      a: 0.04 + Math.random() * 0.12,
       drift: (Math.random() - 0.5) * 0.3,
     }
   }
