@@ -78,7 +78,7 @@ const state = {
 const app = document.getElementById('app')
 app.innerHTML = `
   <main class="stage">
-    <nav class="tabs">
+    <nav class="tabs" id="mainTabs">
       <button class="tab-btn on" data-tab="text">文本模型</button>
       <button class="tab-btn" data-tab="image">图像模型</button>
       <button class="tab-btn" data-tab="voice">语音模型</button>
@@ -88,6 +88,7 @@ app.innerHTML = `
       <button class="tab-btn" data-tab="frontier">前沿</button>
       <button class="tab-btn" data-tab="papers">论文</button>
     </nav>
+    <button id="navToggle" class="nav-toggle" aria-label="打开菜单"><span></span><span></span><span></span></button>
     <div id="tab-text" class="tab-panel on">
     <header class="masthead">
       <h1 class="title">AI <span class="hl">学习本</span></h1>
@@ -1922,6 +1923,8 @@ document.querySelectorAll('.tab-btn').forEach((b) => {
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('on'))
     b.classList.add('on')
     document.getElementById('tab-' + b.dataset.tab).classList.add('on')
+    // 移动端：选完 tab 收起抽屉
+    document.querySelectorAll('.tabs, .nav-toggle').forEach((el) => el.classList.remove('open'))
     // 隐藏面板的 canvas 尺寸为 0，切回时重绘；wired 控件同理（wiredRender(true) 强制按真实尺寸重绘）
     setTimeout(() => {
       try {
@@ -1941,6 +1944,14 @@ renderGlossary()
 initNotes()
 initTransformer($('transRoot'))
 initMicroscopeUI($('microscopeRoot'), () => state.model)
+
+// 移动端：汉堡按钮展开/收起导航抽屉
+const _navToggle = $('navToggle')
+if (_navToggle) {
+  _navToggle.addEventListener('click', () => {
+    document.querySelectorAll('.tabs, .nav-toggle').forEach((el) => el.classList.toggle('open'))
+  })
+}
 
 // 彩蛋：深夜引言（00:00-04:00 打开页面）
 const _h = new Date().getHours()
