@@ -502,6 +502,49 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 .paper-link { display: inline-block; margin-top: 8px; font-size: 12px; padding: 4px 14px; text-decoration: none; }
 @media (max-width: 560px) { .paper-grid { grid-template-columns: 1fr; } }
 
+/* ============================================================
+ * 字号提升层（可读性优先）：全局基础放大 + 小字档位上调
+ * ============================================================ */
+body { font-size: 17px; }
+textarea, input, select { font-size: 15px; }
+.btn { font-size: 16px; }
+.sub { font-size: 16px; }
+.intro { font-size: 15px; }
+.intro-path { font-size: 14px; }
+.stage-dot { font-size: 14px; }
+.muted { font-size: 14px; }
+.hint { font-size: 13.5px; }
+.note { font-size: 14px; }
+.tag { font-size: 13px; }
+.teach p, .teach ul { font-size: 15px; }
+.howto { font-size: 14px; }
+.ms-title { font-size: 15px; }
+.ms-desc, .ms-attn { font-size: 14px; }
+.ms-table { font-size: 13.5px; }
+.ms-probs { font-size: 14px; }
+.ms-logits { font-size: 13.5px; }
+.ms-wte { font-size: 13px; }
+.ms-final { font-size: 21px; }
+.ms-slogan, .ms-egg { font-size: 15px; }
+.ms-calc-intro { font-size: 14px; }
+.dict-term { font-size: 16px; }
+.dict-one { font-size: 14px; }
+.paper-sum { font-size: 14px; }
+.paper-org { font-size: 13px; }
+.paper-link { font-size: 13px; }
+.feat b { font-size: 15px; }
+.feat span { font-size: 13.5px; }
+.loss-log { font-size: 13px; }
+.gen { font-size: 20px; }
+.gen-history-item, .pref-item { font-size: 14px; }
+.faq { font-size: 14px; }
+.faq-a { font-size: 13.5px; }
+.vocab-fold { font-size: 13.5px; }
+.param-title { font-size: 13px; }
+.ans-text { font-size: 16px; }
+.blind-title { font-size: 15px; }
+.egg { font-size: 13.5px; }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }
