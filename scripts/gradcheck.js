@@ -1,58 +1,52 @@
 // ============================================================
 // scripts/gradcheck.js
-// 手算LM —— 数值梯度 vs 解析梯度对比，验证 backward 正确性
+// 手算LM —— 数值梯度 vs 解析梯度对比（多配置验证 backward 正确性）
 // 运行：node scripts/gradcheck.js
 // ============================================================
 
-import { createModel, forward, zeroGrad, defaultCfg } from '../src/model.js'
+import { createModel, forward, zeroGrad, paramCount } from '../src/model.js'
 import { backward } from '../src/backward.js'
 import { crossEntropy, numericalGradient } from '../src/matrix.js'
 
-const cfg = { ...defaultCfg }
-const { params } = createModel(cfg, 42)
+// ---- 覆盖参数滑杆可能的各种配置 ----
+const configs = [
+  { name: '基础 1层1头', cfg: { vocab_size: 32, block_size: 8, n_layer: 1, n_head: 1, n_embd: 4, bias: true } },
+  { name: '多层多头',    cfg: { vocab_size: 32, block_size: 8, n_layer: 2, n_head: 2, n_embd: 8, bias: true } },
+  { name: '更大配置',    cfg: { vocab_size: 48, block_size: 12, n_layer: 2, n_head: 4, n_embd: 16, bias: true } },
+  { name: '无偏置',      cfg: { vocab_size: 24, block_size: 6, n_layer: 1, n_head: 1, n_embd: 4, bias: false } },
+]
 
-// 固定输入（小序列）
-const T = 6
-const idx = Array.from({ length: T }, (_, i) => (i * 7 + 3) % cfg.vocab_size)
-const targets = idx.slice(1).concat([5])
+let allPass = true
+for (const { name, cfg } of configs) {
+  const { params } = createModel(cfg, 42)
+  const T = cfg.block_size
+  const idx = Array.from({ length: T }, (_, i) => (i * 7 + 3) % cfg.vocab_size)
+  const targets = idx.slice(1).concat([(idx[0] + 5) % cfg.vocab_size])
 
-// ---- 解析梯度 ----
-const { logits, cache } = forward(params, idx, targets, cfg)
-const ce = crossEntropy(logits, targets)
-console.log(`loss = ${ce.loss.toFixed(6)}`)
-zeroGrad(params)
-backward(params, cache, ce.dlogits, cfg)
+  const { logits, cache } = forward(params, idx, targets, cfg)
+  const ce = crossEntropy(logits, targets)
+  zeroGrad(params)
+  backward(params, cache, ce.dlogits, cfg)
 
-// ---- 数值梯度（每次扰动后重新 forward 得 loss）----
-const lossFn = () => forward(params, idx, targets, cfg).loss
-
-let worst = 0
-let worstAbs = 0
-let worstKey = ''
-for (const key of Object.keys(params)) {
-  const M = params[key].value
-  const ng = numericalGradient(lossFn, M, 1e-5)
-  const ag = params[key].grad
-  const rows = M.length
-  const cols = M[0].length
-  let maxRel = 0
-  let maxAbs = 0
-  let worstPos = null
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const denom = Math.abs(ag[r][c]) + Math.abs(ng[r][c])
-      const rel = denom === 0 ? 0 : Math.abs(ag[r][c] - ng[r][c]) / denom
-      const absErr = Math.abs(ag[r][c] - ng[r][c])
-      if (absErr > maxAbs) { maxAbs = absErr; worstPos = [r, c, ag[r][c], ng[r][c]] }
-      if (rel > maxRel) maxRel = rel
+  const lossFn = () => forward(params, idx, targets, cfg).loss
+  let worstAbs = 0
+  let worstKey = ''
+  for (const key of Object.keys(params)) {
+    const M = params[key].value
+    const ng = numericalGradient(lossFn, M, 1e-5)
+    const ag = params[key].grad
+    const rows = M.length
+    const cols = M[0].length
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const absErr = Math.abs(ag[r][c] - ng[r][c])
+        if (absErr > worstAbs) { worstAbs = absErr; worstKey = key }
+      }
     }
   }
-  if (maxRel > worst) worst = maxRel
-  if (maxAbs > worstAbs) { worstAbs = maxAbs; worstKey = key }
-  const flag = maxAbs > 1e-4 ? ' ⚠️' : ''
-  console.log(`${key.padEnd(24)} maxRelErr=${maxRel.toExponential(2)}  maxAbsErr=${maxAbs.toExponential(2)}${flag}` +
-    (flag ? `   @[${worstPos[0]},${worstPos[1]}] ana=${worstPos[2].toFixed(4)} num=${worstPos[3].toFixed(4)}` : ''))
+  const pass = worstAbs < 1e-4
+  allPass = allPass && pass
+  console.log(`${pass ? '✅' : '❌'} ${name}  (${paramCount(params)} 参数)  loss=${ce.loss.toFixed(4)}  worstAbsErr=${worstAbs.toExponential(2)} @${worstKey}`)
 }
 
-console.log(`\nWORST: ${worstKey} maxAbsErr=${worstAbs.toExponential(2)}`)
-console.log(worstAbs < 1e-4 ? '✅ 梯度检查通过（backward 正确）' : '❌ 梯度检查失败')
+console.log(`\n${allPass ? '✅ 全部配置梯度检查通过' : '❌ 存在失败配置'}`)
