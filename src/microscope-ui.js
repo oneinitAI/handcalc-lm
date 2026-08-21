@@ -50,11 +50,15 @@ export function initMicroscopeUI(root, getModel) {
       html += `<div class="ms-desc">Q 向量：${step.attnQ.join(', ')}</div>`
     }
     if (step.logits) {
-      html += `<div class="ms-desc">各候选字分数：</div><div class="ms-logits">${step.logits.map((v, i) => `<span>${tokenName(model, i)}:${v}</span>`).join(' ')}</div>`
+      const topN = step.logits.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 12)
+      html += `<div class='ms-desc'>各候选字分数（前 12，共 ${step.logits.length} 个）：</div><div class='ms-logits'>` +
+        topN.map(([v, i]) => `<span>${tokenName(model, i)}:${v}</span>`).join(' ') + `</div>`
     }
     if (step.probs) {
-      const top = step.top
-      html += `<div class="ms-probs">${step.probs.map((v, i) => `<span class="${i === top ? 'top' : ''}">${tokenName(model, i)} ${(v * 100).toFixed(1)}%</span>`).join(' ')}</div>`
+      const topN = step.probs.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 12)
+      html += `<div class='ms-probs'>` +
+        topN.map(([v, i]) => `<span class='${i === step.top ? 'top' : ''}'>${tokenName(model, i)} ${(v * 100).toFixed(1)}%</span>`).join(' ') +
+        `<span class='hint'>（前 12，共 ${step.probs.length} 个）</span></div>`
     }
     html += '</div>'
     return html

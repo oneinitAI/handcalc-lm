@@ -250,9 +250,11 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 .chip.on { border-color: var(--accent); color: var(--accent); background: rgba(179, 68, 44, 0.08); }
 .hint { font-size: 12px; color: var(--ink-faint); }
 
-/* 字符表预览 */
-.vocab-view { margin-top: 8px; font-size: 12px; line-height: 2.1; }
-.vocab-label { color: var(--ink-soft); margin-right: 6px; }
+/* 字符表预览（折叠） */
+.vocab-fold { margin-top: 8px; font-size: 12px; }
+.vocab-fold summary { cursor: pointer; color: var(--glow); user-select: none; }
+.vocab-fold summary:hover { text-decoration: underline; }
+.vocab-chars { line-height: 2.1; max-height: 220px; overflow-y: auto; margin-top: 6px; }
 .vocab-char { display: inline-block; border: 1px solid var(--line); border-radius: 3px; padding: 0 6px; margin: 1px; background: #fffdf6; }
 
 .loss-log { font-size: 11px; font-family: var(--mono); color: var(--ink-faint); margin-top: 4px; word-break: break-all; }
@@ -367,7 +369,7 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
 .ms-final { font-size: 19px; margin-top: 14px; color: var(--accent); letter-spacing: 2px; }
 .ms-slogan { font-size: 14px; color: var(--ink-soft); margin-top: 4px; font-family: var(--kai); font-style: italic; }
 .ms-egg { font-size: 14px; margin-top: 6px; }
-.ms-wte { font-size: 12px; margin: 8px 0; overflow-x: auto; }
+.ms-wte { font-size: 12px; margin: 8px 0; overflow: auto; max-height: 240px; }
 .ms-calc-intro { font-size: 13px; margin: 8px 0; }
 .ms-calc {
   border: 1px solid var(--line);

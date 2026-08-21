@@ -359,11 +359,12 @@ function buildModel() {
       '</div>'
   }
   $('genBtn').disabled = false
-  // 字符表预览（可读性：模型认识哪些字）
+  // 字符表预览（折叠，避免语料大时拉长页面）
   const vv = $('vocabView')
   if (vv) {
-    vv.innerHTML = '<span class="vocab-label">模型认识的字符表：</span>' +
-      chars.map((c) => `<span class="vocab-char" title="token #${stoi[c]}">${TOKEN_NAME[c] ?? c}</span>`).join('')
+    vv.innerHTML = `<details class="vocab-fold"><summary>字符表（${chars.length} 个）· 点开查看</summary><div class="vocab-chars">` +
+      chars.map((c) => `<span class="vocab-char" title="token #${stoi[c]}">${TOKEN_NAME[c] ?? c}</span>`).join('') +
+      `</div></details>`
   }
   return true
 }
