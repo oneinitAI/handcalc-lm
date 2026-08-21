@@ -5,12 +5,12 @@
 
 export const GLOSSARY = [
   { term: 'loss', desc: '损失——模型"猜得有多烂"。训练就是让它变小。' },
-  { term: '困惑度 Perplexity', desc: 'exp(loss)。模型对下一个字"有多困惑"——1 是最理想（完全确定），越大越迷茫。' },
+  { term: '困惑度 Perplexity', desc: '由 loss 换算来的：模型对下一个字"有多困惑"——1 是最理想（完全确定），越大越迷茫。' },
   { term: '学习率', desc: '参数更新的步子大小。太大一步跨过头（训崩），太小走得慢。' },
   { term: '参数', desc: '模型里的数字。训练就是在调这些数字。' },
   { term: '梯度', desc: '告诉每个参数"该往哪调、调多少"的方向和大小。' },
   { term: 'epoch', desc: '把整个语料完整过一遍叫一个 epoch。' },
-  { term: 'batch', desc: '一次参数更新时看的样本数量。' },
+  { term: 'batch', desc: '一次调整模型时看的样本数量。' },
   { term: 'embedding', desc: '把字变成一组数字（向量），让模型能算数。语义相近的字向量也相近。' },
   { term: '分词 Tokenization', desc: '把文本切成模型认识的单元。本项目按字切；真实大模型用 BPE 切成"子词"。' },
   { term: '上下文窗口', desc: '模型一次能"看到"多少个前文字（本项目是 block_size）。超出就看不到 = 遗忘。' },
@@ -33,7 +33,7 @@ export const GLOSSARY = [
   { term: 'KV 缓存', desc: '推理时缓存历史 attention 的 K/V，避免重复计算，加速生成。' },
   { term: '量化', desc: '把参数的精度从 32 位压到 8/4 位，模型变小变快，略有损失。' },
   { term: '蒸馏', desc: '大模型（老师）教小模型（学生），把能力"蒸馏"到小模型里。' },
-  { term: 'beam search', desc: '一种生成策略：同时保留多个候选路径，选整体最好的——比逐个贪心更优。' },
+  { term: 'beam search', desc: '一种生成策略：同时保留多个候选路径，选整体最好的——比"每次只挑最好的一个"更聪明。' },
 ]
 
 export const FAQ = [

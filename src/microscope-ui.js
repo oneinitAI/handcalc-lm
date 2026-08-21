@@ -10,7 +10,7 @@ export function initMicroscopeUI(root, getModel) {
   root.innerHTML = `
     <section class="card">
       <h2>陆 · 显微镜</h2>
-      <p class="muted">给你权重集和纸笔，你可以把 LLM 的下一句话算出来。这是当前模型对这句话的<b>真实计算过程</b>——没有魔法，只有乘法。</p>
+      <p class="muted">给你权重表（模型里存的所有数字）和纸笔，你可以把模型的下一句话算出来。这里说的"模型"，就是你在「文本模型」tab 训练的那个"猜下一个字"的小家伙（也叫手算 LM）。这是它对待这句话的<b>真实计算过程</b>——没有魔法，只有乘法。</p>
       <div class="howto">① 输入几个字（只看前 3 个）→ 点「放大观察」<br>② 看 6 步真实计算：查表 → 位置 → 注意力 → 前馈 → 打分 → 选字<br>③ 切「自己算」：用权重表 + 内置计算器亲手算出答案<br>④ 页边楷体批注是新手提示，点右上「翻面·进阶模式」看公式</div>
       <div class="row">
         <input id="msInput" value="月光" size="10" title="输入几个字（只看前 3 个），显微镜会展示模型如何预测下一个字">
@@ -91,7 +91,7 @@ export function initMicroscopeUI(root, getModel) {
     const step = lastResult.steps[2] // attention
     const wte = model.params.wte.value
     const html = `
-      <div class="ms-calc-intro">你手里有纸笔和权重表。任务：算出「${step.attnProb.length} 个注意力权重 × 对应向量」的<b>第一个分量</b>。</div>
+      <div class="ms-calc-intro">你手里有纸笔和权重表。<b>这一步在算"注意力怎么把大家混起来"</b>：每个词的新理解 = 它看的每个旧词 × 注意它的比例，全部加起来。你只要算加起来的<b>第一个数</b>（向量最上面那一格，也就是"第一个分量"）就行。</div>
       <div class="ms-wte"><b>wte 词向量表（查表用）：</b>
         <table class="ms-table"><tr><th>字</th>${model.itos.map((_, j) => `<th>${j}</th>`).join('')}</tr>
         ${wte.map((row, i) => `<tr><td class="ms-tok">${tokenName(model, i)}</td>${row.map((v) => `<td>${v.toFixed(2)}</td>`).join('')}</tr>`).join('')}
