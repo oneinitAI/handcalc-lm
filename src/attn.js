@@ -5,7 +5,7 @@
 // ============================================================
 
 import { forward } from './model.js'
-import { softmaxRows } from './matrix.js'
+import { sampleProbs, sampleFrom } from './sample.js'
 
 /**
  * 生成并记录每步 attention。
@@ -14,8 +14,6 @@ import { softmaxRows } from './matrix.js'
  *   attnSteps[i]: 第 i 个生成 token 的注意力分布 [contextLen]（多头多层平均，和为 1）
  */
 export function sampleWithAttn(params, idx, maxNewTokens, cfg, opts = {}) {
-  const temperature = opts.temperature ?? 1.0
-  const topK = opts.topK ?? null
   const seq = idx.slice()
   const attnSteps = []
 
@@ -37,25 +35,9 @@ export function sampleWithAttn(params, idx, maxNewTokens, cfg, opts = {}) {
     for (let s = 0; s < T; s++) avg[s] /= count
     attnSteps.push(avg)
 
-    // 采样下一个 token（同 sample）
-    const last = logits[logits.length - 1]
-    const scaled = last.map((v) => v / temperature)
-    if (topK && topK > 0 && topK < scaled.length) {
-      const sorted = scaled.slice().sort((a, b) => b - a)
-      const thr = sorted[topK - 1]
-      for (let j = 0; j < scaled.length; j++) if (scaled[j] < thr) scaled[j] = -Infinity
-    }
-    const probs = softmaxRows([scaled])[0]
+    // 采样下一个 token（复用统一采样核心，支持 topK/topP）
+    const probs = sampleProbs(logits[logits.length - 1], opts)
     seq.push(sampleFrom(probs))
   }
   return { seq, attnSteps }
-}
-
-function sampleFrom(probs) {
-  let r = Math.random()
-  for (let i = 0; i < probs.length; i++) {
-    r -= probs[i]
-    if (r <= 0) return i
-  }
-  return probs.length - 1
 }

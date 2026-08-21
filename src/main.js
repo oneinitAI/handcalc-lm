@@ -85,6 +85,8 @@ app.innerHTML = `
         <button id="trainBtn" class="btn">开始训练</button>
         <button id="stepBtn" class="btn ghost">单步</button>
         <button id="resetBtn" class="btn ghost">重建</button>
+        <button id="snapSaveBtn" class="btn ghost">存快照</button>
+        <button id="snapLoadBtn" class="btn ghost">读快照</button>
       </div>
       <p class="muted" id="modelInfo"></p>
       <div class="train-progress">
@@ -131,6 +133,15 @@ app.innerHTML = `
         <label>温度 <input id="temp" value="0.8" size="4"></label>
         <label>长度 <input id="len" value="32" size="4"></label>
       </div>
+      <details class="advanced">
+        <summary>进阶采样（top-k / top-p）</summary>
+        <div class="row">
+          <label>top-k <input id="topk" value="0" size="4"></label>
+          <span class="hint">0=关 · 只保留概率最高的前 k 个</span>
+          <label>top-p <input id="topp" value="1" size="4"></label>
+          <span class="hint">1=关 · 保留累计概率达 p 的候选</span>
+        </div>
+      </details>
       <div id="genOut" class="gen">（先训练，再让它续写或回答）</div>
       <div class="muted" id="perf"></div>
       <div class="viz">
@@ -316,6 +327,47 @@ $('resetBtn').addEventListener('click', () => {
   buildModel()
   lossChart.draw()
 })
+
+// ---------- 模型快照（localStorage 保存/加载）----------
+function saveSnapshot() {
+  if (!state.model) { alert('先构建模型'); return }
+  const data = {
+    params: JSON.parse(JSON.stringify(state.model.params.value)),
+    cfg: { ...state.model.cfg },
+    itos: state.model.itos.slice(),
+    stoi: state.model.stoi,
+    ts: Date.now(),
+  }
+  try {
+    const snaps = JSON.parse(localStorage.getItem('handcalc:snaps') || '[]')
+    snaps.push(data)
+    const kept = snaps.slice(-3) // 保留最近 3 个
+    localStorage.setItem('handcalc:snaps', JSON.stringify(kept))
+    $('modelInfo').textContent = `✅ 快照已存（共 ${kept.length} 个，浏览器本地）`
+  } catch (e) {
+    $('modelInfo').textContent = '⚠️ 模型太大，快照存不下（localStorage 容量限制）'
+  }
+}
+
+function loadSnapshot() {
+  let snaps = []
+  try { snaps = JSON.parse(localStorage.getItem('handcalc:snaps') || '[]') } catch (e) { snaps = [] }
+  if (!snaps.length) { alert('还没有快照。先训练，再点「存快照」'); return }
+  const data = snaps[snaps.length - 1]
+  if (!state.model) buildModel()
+  const m = state.model
+  for (const key in m.params.value) m.params.value[key] = data.params[key].map((row) => row.slice())
+  m.cfg.vocab_size = data.cfg.vocab_size
+  m.itos = data.itos.slice()
+  m.stoi = { ...data.stoi }
+  state.opt = createOptimizer(m.params, { type: 'adam', lr: parseFloat($('lr').value) }) // 重建优化器
+  $('modelInfo').textContent = `📂 已读快照：${m.itos.length} token · ${paramCount(m.params)} 参数`
+  heatmap.set(m.params.wte.value, 'wte')
+  heatmap.draw()
+  $('genBtn').disabled = false
+}
+$('snapSaveBtn').addEventListener('click', saveSnapshot)
+$('snapLoadBtn').addEventListener('click', loadSnapshot)
 
 // ---------- SFT 微调 ----------
 function deepCopy(v) { return JSON.parse(JSON.stringify(v)) }
@@ -578,8 +630,9 @@ $('genBtn').addEventListener('click', () => {
     // 问答模式：<u>问题<a> → 模型生成回答
     const q = $('prompt').value.trim() || '你是谁'
     const p = qaPrompt(state.model.stoi, q)
+    const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1 }
     const t0 = performance.now()
-    const seq = sample(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const seq = sample(state.model.params, p, len, state.model.cfg, sampOpts)
     const msPerTok = (performance.now() - t0) / Math.max(1, seq.length - p.length)
     $('perf').textContent = `${msPerTok.toFixed(1)} ms/token · ${(1000 / msPerTok).toFixed(0)} tokens/s`
     const text = tokensToText(state.model.itos, seq)
@@ -597,8 +650,9 @@ $('genBtn').addEventListener('click', () => {
     // 续写模式（带 Attention 直播：文本流与热力图同节奏）
     const prompt = $('prompt').value
     const p = prompt.split('').map((c) => state.model.stoi[c] ?? 0)
+    const sampOpts = { temperature: temp, topK: parseInt($('topk').value) || 0, topP: parseFloat($('topp').value) || 1 }
     const t0 = performance.now()
-    const { seq, attnSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, { temperature: temp })
+    const { seq, attnSteps } = sampleWithAttn(state.model.params, p, len, state.model.cfg, sampOpts)
     const msPerTok = (performance.now() - t0) / Math.max(1, attnSteps.length)
     $('perf').textContent = `${msPerTok.toFixed(1)} ms/token · ${(1000 / msPerTok).toFixed(0)} tokens/s · ${paramCount(state.model.params)} 参数`
     const win = seq.slice(0, Math.min(seq.length, state.model.cfg.block_size))

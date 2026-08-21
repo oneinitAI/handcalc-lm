@@ -364,6 +364,13 @@ textarea { width: 100%; resize: vertical; line-height: 1.7; }
  * 深度视觉层：动效 · 质感 · 交互细节（数学手稿 × 科技反差）
  * ============================================================ */
 
+/* 进阶采样折叠区 */
+.advanced { margin-top: 10px; font-size: 13px; }
+.advanced summary { cursor: pointer; color: var(--glow); font-size: 12.5px; letter-spacing: 1px; user-select: none; }
+.advanced summary:hover { text-decoration: underline; }
+.advanced .row { margin-top: 8px; }
+.advanced input { width: 56px; }
+
 /* --- 训练进度条（loss 收敛进度：墨槽 + 朱砂填充） --- */
 .train-progress { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .progress-track { flex: 1; height: 8px; background: #e8dfc9; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
