@@ -18,6 +18,7 @@ import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
 import { PIXEL_PATTERNS, gridToSeq, seqToGrid, renderGrid, attachDrawing, charToVal, valToChar } from './pixel.js'
 import { MELODIES, parseMelody, playMelody, playTone, renderMelody } from './melody.js'
 import { createGradientDescent, createWave } from './animation.js'
+import { initMultiModal } from './mm.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -75,6 +76,7 @@ app.innerHTML = `
       <button class="tab-btn on" data-tab="text">文本模型</button>
       <button class="tab-btn" data-tab="image">图像模型</button>
       <button class="tab-btn" data-tab="voice">语音模型</button>
+      <button class="tab-btn" data-tab="multi">多模态</button>
     </nav>
     <div id="tab-text" class="tab-panel on">
     <header class="masthead">
@@ -439,6 +441,43 @@ app.innerHTML = `
       <div class="howto">① 选一首旋律（或输入自己的简谱）→ ② 开始训练（看 loss 下降）→ ③ 「模型作曲」续写新旋律 → 「播放」听它创作<br>语音模型和文字模型是<b>同一个架构</b>——真实 TTS/ASR 把声波变成数字（频谱）后，同样是"猜下一个值"。</div>
     </section>
 
+    </div>
+    <div id="tab-multi" class="tab-panel">
+      <div class="teach">
+        <h3>动手① 统一序列轨道：一切都是序列</h3>
+        <p>同一个 Transformer 能吃三种序列：<b>字 token（文本）· 像素 token（图像）· 音高 token（音频）</b>——模型眼里没有"文字/图片/声音"，只有数字。</p>
+        <div class="viz-row">
+          <div class="viz"><div class="viz-title">文本 token</div><div id="mmTxtTrack" class="mm-track">月光如流水一...</div></div>
+          <div class="viz"><div class="viz-title">像素 token</div><div id="mmImgTrack" class="mm-track mono">f f 0 0 ...</div></div>
+          <div class="viz"><div class="viz-title">音高 token</div><div id="mmAudTrack" class="mm-track mono">1 1 5 5 6 6 ...</div></div>
+        </div>
+      </div>
+      <div class="teach">
+        <h3>动手② 多模态混合模型：一个模型通吃</h3>
+        <p>把三种模态的 token <b>混进同一个模型</b>一起训练（每个序列前加模态标记）。训练后——它同时会<b>续写文本、画图、作曲</b>。这就是 <b>GPT-4V 的理念</b>：一个 Transformer 处理所有模态。</p>
+        <div class="row">
+          <button id="mmTrainBtn" class="btn" title="用 文本+像素+音高 三种序列混合训练同一个模型">训练混合模型</button>
+          <span class="hint" id="mmInfo"></span>
+        </div>
+        <div class="row">
+          <button id="mmTxtBtn" class="btn ghost" disabled title="输入 文标记+月光 → 模型续写荷塘月色风格文本">续写文本</button>
+          <button id="mmImgBtn" class="btn ghost" disabled title="输入 图标记 → 模型生成图像">画图</button>
+          <button id="mmAudBtn" class="btn ghost" disabled title="输入 音标记 → 模型作曲并播放">作曲并播放</button>
+        </div>
+        <div id="mmTxtOut" class="gen"></div>
+        <canvas id="mmImgOut" class="pixel-canvas"></canvas>
+        <canvas id="mmAudOut" class="canvas"></canvas>
+      </div>
+      <div class="teach">
+        <h3>动手③ 跨模态转换</h3>
+        <p><b>让图案唱歌</b>：把像素值当音高播放——图也能"唱"。<b>图像即文本</b>：像素变成字符串。</p>
+        <div class="row">
+          <select id="mmXImg" class="inline-select" title="选一个图案做跨模态转换"></select>
+          <button id="mmSingBtn" class="btn ghost" title="把图案的像素值映射成音高播放——图在唱歌">让图案唱歌</button>
+          <button id="mmToTextBtn" class="btn ghost" title="把图案的像素变成字符文本——图像即文本">图像→文本</button>
+        </div>
+        <div id="mmXOut" class="muted mono"></div>
+      </div>
     </div>
   </main>
 `
@@ -1572,6 +1611,9 @@ gd.draw()
 $('gdStart').addEventListener('click', () => gd.start())
 $('gdReset').addEventListener('click', () => gd.reset())
 $('gdLr').addEventListener('input', () => { gd.setLr(parseFloat($('gdLr').value)); gd.reset(); gd.start() })
+
+// 多模态（一个 Transformer 通吃文本+像素+音高）
+initMultiModal({ $, createModel, createOptimizer, trainStep, sample, CORPUS, PIXEL_PATTERNS, MELODIES, gridToSeq, seqToGrid, renderGrid, parseMelody, playMelody, renderMelody, state })
 
 // 卡片 staggered 入场（教学节奏：一张张"翻开"）
 function staggerCards() {
