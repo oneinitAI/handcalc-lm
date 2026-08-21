@@ -90,14 +90,14 @@ app.innerHTML = `
     <section class="card" id="dataCard">
       <h2>壹 · 语料</h2>
       <div class="corpus-pick">
-        ${CORPUS.map((c) => `<button class="chip" data-id="${c.id}">${c.title}</button>`).join('')}
+        ${CORPUS.map((c) => `<button class="chip" data-id="${c.id}" title="${c.desc}">${c.title}</button>`).join('')}
         <span class="hint">或直接粘贴你的文本 ↓</span>
       </div>
       <div class="corpus-pick">
-        <button id="corpusRandom" class="chip">随机乱文（实验）</button>
-        <button id="corpusDouble" class="chip">语料 ×2（实验）</button>
+        <button id="corpusRandom" class="chip" title="实验：把当前语料的字随机拼成 200 字乱文当语料——看模型学'乱码'会是什么样">随机乱文（实验）</button>
+        <button id="corpusDouble" class="chip" title="实验：把当前语料拼接成 1.5 倍长度——更长的语料让模型学得更久">语料 ×2（实验）</button>
       </div>
-      <textarea id="corpus" rows="4"></textarea>
+      <textarea id="corpus" rows="4" placeholder="在这里粘贴你自己的文本，模型会从这些字里学规律（语料越长训练越慢，但能学更多）"></textarea>
       <p class="muted" id="corpusInfo"></p>
       <div id="vocabView" class="vocab-view"></div>
     </section>
@@ -105,7 +105,7 @@ app.innerHTML = `
     <section class="card" id="modelCard">
       <h2>贰 · 模型与训练</h2>
       <div class="row">
-        <label>档位
+        <label title="模型大小：越大学得越好但越慢。超微最快最笨，大最慢最聪明">档位
           <select id="size">
             <option value="ultratiny">超微</option>
             <option value="tiny">微</option>
@@ -114,20 +114,20 @@ app.innerHTML = `
             <option value="large">大</option>
           </select>
         </label>
-        <label>学习率 <input id="lr" value="0.01" size="6"></label>
-        <label>优化器
+        <label title="学习率=参数更新的步子大小。太大一步跨过头（loss 飙升=训崩），太小学不动。建议 0.003~0.03">学习率 <input id="lr" value="0.01" size="6"></label>
+        <label title="优化器=怎么更新参数。Adam 自适应学习率，训练快（推荐）；SGD 最朴素的梯度下降，更'经典'">优化器
           <select id="optType">
             <option value="adam" selected>Adam</option>
             <option value="sgd">SGD</option>
           </select>
         </label>
-        <label>种子 <input id="seed" value="42" size="5"></label>
-        <label>速度 <input id="speed" type="range" min="20" max="1000" value="200"></label>
-        <button id="trainBtn" class="btn">开始训练</button>
-        <button id="stepBtn" class="btn ghost">单步</button>
-        <button id="resetBtn" class="btn ghost">重建</button>
-        <button id="snapSaveBtn" class="btn ghost">存快照</button>
-        <button id="snapLoadBtn" class="btn ghost">读快照</button>
+        <label title="随机数种子。同一种子+同参数+同语料=每次训练结果完全一致（可复现）">种子 <input id="seed" value="42" size="5"></label>
+        <label title="每帧（约 1/60 秒）训练多少步。调快=快速看结果；调慢=看清 loss 曲线和权重一点点生长">速度 <input id="speed" type="range" min="20" max="1000" value="200"></label>
+        <button id="trainBtn" class="btn" title="开始/暂停训练。训练=让模型学会'猜下一个字'，loss 会下降">开始训练</button>
+        <button id="stepBtn" class="btn ghost" title="只训练一步。想观察每一步的细微变化用这个">单步</button>
+        <button id="resetBtn" class="btn ghost" title="用当前参数重新随机初始化模型（丢掉已经学到的，重新开始）">重建</button>
+        <button id="snapSaveBtn" class="btn ghost" title="把当前模型权重存到浏览器本地（localStorage，保留最近 3 个），换语料/重建后能读回来">存快照</button>
+        <button id="snapLoadBtn" class="btn ghost" title="读回最近保存的模型快照，恢复当时的权重和字符表">读快照</button>
       </div>
       <p class="muted" id="modelInfo"></p>
       <div class="train-progress">
@@ -141,7 +141,7 @@ app.innerHTML = `
           <div id="lossLog" class="loss-log"></div>
         </div>
         <div class="viz">
-          <div class="viz-title">参数热力图 <span class="tag"><select id="hmMode" class="inline-select"><option value="w">权重</option><option value="g">梯度</option></select></span></div>
+          <div class="viz-title">参数热力图 <span class="tag"><select id="hmMode" class="inline-select" title="热力图显示什么：权重=参数本身的值；梯度=参数当前被调整的方向和大小（训练中变化）"><option value="w">权重</option><option value="g">梯度</option></select></span></div>
           <canvas id="heatmap" class="canvas"></canvas>
         </div>
       </div>
@@ -151,17 +151,17 @@ app.innerHTML = `
       <h2>叁 · 微调（SFT）</h2>
       <p class="muted">喂给模型问答对，让它从"接着写"学会"回答问题"——在预训练权重上继续真实训练。</p>
       <div class="corpus-pick">
-        <select id="qaSet" class="inline-select">
+        <select id="qaSet" class="inline-select" title="选择要载入的示例问答套：通用对话 / 关于手算LM / 趣味问答">
           <option value="general">通用对话</option>
           <option value="about">关于手算LM</option>
           <option value="fun">趣味问答</option>
         </select>
-        <button id="loadQaBtn" class="chip">载入示例问答</button>
+        <button id="loadQaBtn" class="chip" title="把选中的示例问答对填入下面的文本框（可再编辑）">载入示例问答</button>
         <span class="hint">每行一条「问题 / 回答」，斜杠分隔</span>
       </div>
-      <textarea id="qaList" rows="4"></textarea>
+      <textarea id="qaList" rows="4" placeholder="每行一条：问题 / 回答。例：你是谁 / 我是手算LM"></textarea>
       <div class="row">
-        <label>混合（问答占比）
+        <label title="微调时，训练数据里问答对的占比。越高越会回答；但语料续写能力越容易被覆盖（灾难性遗忘）。50% 是平衡点">混合（问答占比）
           <select id="mixRatio">
             <option value="0">纯语料</option>
             <option value="0.3">30% 问答</option>
@@ -173,9 +173,9 @@ app.innerHTML = `
         <span class="hint">问答占比越高越会回答，但语料续写能力越容易被覆盖（灾难性遗忘）</span>
       </div>
       <div class="row">
-        <button id="sftBtn" class="btn">开始微调</button>
-        <button id="snapBtn" class="btn ghost">记快照（微调前）</button>
-        <button id="cmpBtn" class="btn ghost" disabled>切到：微调前</button>
+        <button id="sftBtn" class="btn" title="开始微调：用问答对继续训练当前模型（学习率已自动调低，混合比例防遗忘）。微调后模型会"回答问题"">开始微调</button>
+        <button id="snapBtn" class="btn ghost" title="记录微调前的权重快照，之后可以一键对比"微调前只会续写 vs 微调后会回答"">记快照（微调前）</button>
+        <button id="cmpBtn" class="btn ghost" disabled title="在当前权重和快照（微调前）之间切换，对比同一个模型微调前后的行为">切到：微调前</button>
       </div>
       <p class="muted" id="sftInfo"></p>
     </section>
@@ -183,22 +183,22 @@ app.innerHTML = `
     <section class="card" id="genCard">
       <h2>肆 · 生成</h2>
       <div class="corpus-pick">
-        <button id="modeCont" class="chip on">续写模式</button>
-        <button id="modeQa" class="chip">问答模式</button>
+        <button id="modeCont" class="chip on" title="续写模式：输入几个字，模型接着写下去（预训练后可用）">续写模式</button>
+        <button id="modeQa" class="chip" title="问答模式：输入问题，模型试着回答（需要先微调解锁）">问答模式</button>
       </div>
       <div class="corpus-pick" id="promptEx">
-        <button class="chip" data-p="月光">月光</button>
-        <button class="chip" data-p="红岸基地">红岸基地</button>
-        <button class="chip" data-p="从明天起">从明天起</button>
-        <button class="chip" data-p="荷叶">荷叶</button>
-        <button class="chip" data-p="黑夜">黑夜</button>
-        <button class="chip" id="promptRandom">从语料随机</button>
+        <button class="chip" data-p="月光" title="示例开头：点击填入">月光</button>
+        <button class="chip" data-p="红岸基地" title="示例开头：点击填入">红岸基地</button>
+        <button class="chip" data-p="从明天起" title="示例开头：点击填入">从明天起</button>
+        <button class="chip" data-p="荷叶" title="示例开头：点击填入">荷叶</button>
+        <button class="chip" data-p="黑夜" title="示例开头：点击填入">黑夜</button>
+        <button class="chip" id="promptRandom" title="从当前语料里随机截一段当开头——探索模型会怎么接">从语料随机</button>
       </div>
       <div class="row">
-        <input id="prompt" value="月光" size="14">
-        <button id="genBtn" class="btn" disabled>生成</button>
-        <label>温度 <input id="temp" value="0.8" size="4"></label>
-        <label>长度 <input id="len" value="32" size="4"></label>
+        <input id="prompt" value="月光" size="14" title="输入开头文字（续写模式）或问题（问答模式）" placeholder="月光">
+        <button id="genBtn" class="btn" disabled title="让模型生成：续写模式=接着写；问答模式=回答问题">生成</button>
+        <label title="温度=生成时的冒险程度。0.1 每次都选最稳的字（乏味但稳）；0.8 正常；1.5 爱乱试（有惊喜也常乱）">温度 <input id="temp" value="0.8" size="4"></label>
+        <label title="最多生成多少个字">长度 <input id="len" value="32" size="4"></label>
       </div>
       <details class="advanced">
         <summary>进阶采样（top-k / top-p）</summary>
@@ -213,8 +213,8 @@ app.innerHTML = `
         <summary>温度对决赛（同一开头 · 三种温度）</summary>
         <p class="muted">同一个开头，用 0.2（稳）/ 0.8（正常）/ 1.5（冒险）各生成一次——感受温度如何改变模型的"性格"。</p>
         <div class="row">
-          <input id="duelPrompt" value="月光" size="14">
-          <button id="duelBtn" class="btn ghost">开赛</button>
+          <input id="duelPrompt" value="月光" size="14" title="对决赛的开头文字">
+          <button id="duelBtn" class="btn ghost" title="用三个温度（0.2/0.8/1.5）同时生成并排对比——直观感受"温度=性格"">开赛</button>
         </div>
         <div id="duelResult"></div>
       </details>
@@ -225,10 +225,10 @@ app.innerHTML = `
         <summary>🪞 人机接力（你和模型轮流写）</summary>
         <p class="muted">你写一句，点"模型接一句"，它续到句号——然后你继续写，轮流创作。</p>
         <div class="row">
-          <button id="relayBtn" class="btn ghost">模型接一句</button>
-          <button id="relayReset" class="btn ghost">清空重来</button>
+          <button id="relayBtn" class="btn ghost" title="模型基于当前文本续写到下一个句号">模型接一句</button>
+          <button id="relayReset" class="btn ghost" title="清空接力文本，重新开始">清空重来</button>
         </div>
-        <textarea id="relayText" rows="3">月光</textarea>
+        <textarea id="relayText" rows="3" title="接力文本：你和模型共同创作的草稿，可以直接编辑">月光</textarea>
       </details>
       <div id="genHistory" class="gen-history"></div>
       <div class="viz">
@@ -241,26 +241,26 @@ app.innerHTML = `
       <h2>伍 · 偏好对齐（DPO）</h2>
       <p class="muted">让模型生成两个回答，你告诉它哪个更好——它会学会偏向你的偏好。这就是 DPO（2023 年论文算法），也是 OpenAI 标注员做的真实工作。</p>
       <div class="row">
-        <input id="dpoQ" value="你好" size="14">
-        <button id="genPairBtn" class="btn">生成两个回答</button>
+        <input id="dpoQ" value="你好" size="14" title="用来生成两个回答的问题">
+        <button id="genPairBtn" class="btn" title="让当前模型用两种不同温度各生成一个回答，供你比较">生成两个回答</button>
       </div>
       <div class="pair" id="pairBox" hidden>
         <div class="answer">
           <div id="ansA" class="ans-text">（回答 A）</div>
-          <button id="pickABtn" class="btn ghost">这个更好</button>
+          <button id="pickABtn" class="btn ghost" title="点选：你觉得 A 更好。你的选择会被当成训练信号（你就是人类标注员）">这个更好</button>
         </div>
         <div class="answer">
           <div id="ansB" class="ans-text">（回答 B）</div>
-          <button id="pickBBtn" class="btn ghost">这个更好</button>
+          <button id="pickBBtn" class="btn ghost" title="点选：你觉得 B 更好。你的选择会被当成训练信号">这个更好</button>
         </div>
       </div>
       <p class="muted" id="prefInfo">已收集 0 对偏好</p>
       <div id="prefList" class="pref-list"></div>
       <div class="row">
-        <label>β <input id="dpoBeta" value="0.5" size="4"></label>
-        <label>步数 <input id="dpoSteps" value="300" size="5"></label>
-        <button id="dpoBtn" class="btn" disabled>开始 DPO 训练</button>
-        <button id="dpoResetBtn" class="btn ghost">清空偏好</button>
+        <label title="β=DPO 的强度。越小越接近微调后的模型（保守）；越大改变越明显（大胆但可能学歪）。建议 0.1~1">β <input id="dpoBeta" value="0.5" size="4"></label>
+        <label title="每对偏好训练多少步。越多越强化偏好，但太多会过拟合（只会背你选过的回答）">步数 <input id="dpoSteps" value="300" size="5"></label>
+        <button id="dpoBtn" class="btn" disabled title="用收集的偏好对训练模型：让它学会偏向你选择的回答风格">开始 DPO 训练</button>
+        <button id="dpoResetBtn" class="btn ghost" title="清空已收集的偏好对，重新开始">清空偏好</button>
       </div>
       <p class="muted" id="dpoInfo"></p>
       <div id="blindBox" hidden></div>
@@ -723,8 +723,8 @@ function initBlind() {
   box.innerHTML = `
     <div class="blind-title">🔍 盲测：猜猜哪个是「对齐后」的模型？</div>
     <div class="row">
-      <input id="blindQ" value="你好" size="12">
-      <button id="blindGen" class="btn ghost">生成两版回答</button>
+      <input id="blindQ" value="你好" size="12" title="盲测用的问题">
+      <button id="blindGen" class="btn ghost" title="用 DPO 前（参考模型）和 DPO 后（当前模型）各生成一个回答，不告诉你哪个是哪个">生成两版回答</button>
     </div>
     <div id="blindPair" class="pair"></div>
     <div id="blindResult" class="muted"></div>

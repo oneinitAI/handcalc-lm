@@ -13,10 +13,10 @@ export function initMicroscopeUI(root, getModel) {
       <p class="muted">给你权重集和纸笔，你可以把 LLM 的下一句话算出来。这是当前模型对这句话的<b>真实计算过程</b>——没有魔法，只有乘法。</p>
       <div class="howto">① 输入几个字（只看前 3 个）→ 点「放大观察」<br>② 看 6 步真实计算：查表 → 位置 → 注意力 → 前馈 → 打分 → 选字<br>③ 切「自己算」：用权重表 + 内置计算器亲手算出答案<br>④ 页边楷体批注是新手提示，点右上「翻面·进阶模式」看公式</div>
       <div class="row">
-        <input id="msInput" value="月光" size="10">
-        <button id="msRun" class="btn">放大观察</button>
-        <button id="msTabDemo" class="chip on">看演示</button>
-        <button id="msTabCalc" class="chip">自己算</button>
+        <input id="msInput" value="月光" size="10" title="输入几个字（只看前 3 个），显微镜会展示模型如何预测下一个字">
+        <button id="msRun" class="btn" title="用当前模型真实权重，逐步展示预测下一个字的完整计算过程">放大观察</button>
+        <button id="msTabDemo" class="chip on" title="看演示：系统逐步播放每一步计算（查表→注意力→变换→选字）">看演示</button>
+        <button id="msTabCalc" class="chip" title="自己算：用权重表 + 内置计算器亲手算出答案，全部算对会触发彩蛋">自己算</button>
       </div>
       <div id="msDemo"></div>
       <div id="msCalc" hidden></div>
@@ -94,9 +94,9 @@ export function initMicroscopeUI(root, getModel) {
       </table></div>
       <div class="ms-desc">注意力权重：${step.attnProb.join(' · ')}</div>
       <div class="row">
-        <input id="msAns" placeholder="算出的第一个分量" size="12">
-        <button id="msCheck" class="btn ghost">校验</button>
-        <button id="msSkip" class="btn ghost">看答案</button>
+        <input id="msAns" placeholder="算出的第一个分量" size="12" title="把你的计算结果填在这里，然后点校验">
+        <button id="msCheck" class="btn ghost" title="检查你的答案对不对（答对会解锁成就）">校验</button>
+        <button id="msSkip" class="btn ghost" title="算不出来就点这里直接看答案">看答案</button>
       </div>
       <div id="msCalcResult" class="muted"></div>
       <div class="ms-calc">
