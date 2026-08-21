@@ -14,7 +14,8 @@ import { initMicroscopeUI } from './microscope-ui.js'
 import { NOTES } from './notes.js'
 import { FAQ } from './glossary.js'
 import { ACHIEVEMENTS, loadEarned, saveEarned } from './ach.js'
-import { PIXEL_PATTERNS, gridToSeq, seqToGrid, renderGrid } from './pixel.js'
+import { PIXEL_PATTERNS, gridToSeq, seqToGrid, renderGrid, attachDrawing } from './pixel.js'
+import { MELODIES, parseMelody, playMelody, renderMelody } from './melody.js'
 import { DEFAULT_QA, QA_SETS, formatPairs, buildSftData, qaPrompt, extendVocab } from './sft.js'
 import { dpoTrainStep, makeRefModel } from './dpo.js'
 
@@ -285,30 +286,49 @@ app.innerHTML = `
 
     <section class="card" id="pixelCard">
       <h2>捌 · 图像模型（像素即序列）</h2>
-      <p class="muted">图像在模型眼里 = <b>一串像素值</b>。预测下一个像素 = 文本预测下一个字——同一个模型，换数据就能"画图"。</p>
+      <p class="muted">图像在模型眼里 = <b>256 个像素值（16×16 灰度 16 级）</b>。训练它"猜下一个像素"——和文字模型<b>同一个架构</b>，换数据就能画图。</p>
       <div class="corpus-pick" id="pixelPick">
         ${PIXEL_PATTERNS.map((p) => `<button class="chip" data-pix="${p.id}">${p.name}</button>`).join('')}
+        <button class="chip" id="pixDrawBtn">自己画</button>
+        <button class="chip" id="pixClearBtn">清空画板</button>
       </div>
       <div class="row">
-        <button id="pixTrainBtn" class="btn" title="用图案的像素序列训练模型（和文本训练同一套代码）">训练它学画</button>
-        <button id="pixGenBtn" class="btn ghost" disabled title="从图案开头的 4 个像素开始，让模型生成整幅图">生成</button>
+        <label title="图像模型的训练步数。像素序列 256 个，比文本更快学会">步数 <input id="pixSteps" value="2000" size="5"></label>
+        <button id="pixTrainBtn" class="btn" title="用像素序列训练模型（和文本训练同一套代码，看 loss 下降）">开始训练</button>
+        <button id="pixGenBtn" class="btn ghost" disabled title="从图案开头的 8 个像素开始生成整幅图（动画逐像素点亮）">生成</button>
         <span class="hint" id="pixInfo"></span>
       </div>
       <div class="viz-row">
-        <div class="viz"><div class="viz-title">目标图案</div><canvas id="pixTarget" class="pixel-canvas"></canvas></div>
+        <div class="viz"><div class="viz-title">目标（选图案 / 自己画）</div><canvas id="pixTarget" class="pixel-canvas"></canvas><canvas id="pixBoard" class="pixel-canvas" hidden title="在这里涂画，作为训练数据"></canvas></div>
         <div class="viz"><div class="viz-title">模型生成 <span class="tag" id="pixStage">未训练</span></div><canvas id="pixOut" class="pixel-canvas"></canvas></div>
       </div>
-      <div class="howto">① 选一个图案 → ② 点「训练它学画」（约 2 秒）→ ③ 点「生成」，看模型从噪声学会画出图案。<br>它和文本模型是<b>同一个架构</b>，只是把"字"换成了"像素"——这就是图像生成模型的雏形（扩散模型本质也在猜"下一个像素"）。</div>
+      <div class="viz"><div class="viz-title">loss 曲线（像素版）</div><canvas id="pixLoss" class="canvas"></canvas></div>
+      <div class="howto">① 选图案，或点「自己画」在画板上涂一个图形 → ② 开始训练（看 loss 下降）→ ③ 生成，看模型从噪声逐步"画出"它学到的<br>它和文字模型是<b>同一个 Transformer</b>，只是把"字"换成 16 级灰度像素——图像生成模型（扩散模型）的雏形。</div>
     </section>
 
     <section class="card" id="voiceCard">
-      <h2>玖 · 语音与多模态</h2>
-      <p class="muted"><b>声音 = 随时间变化的振动</b>。模型学语音，就是学"下一个振动"的规律——和猜字、猜像素同一个思路。</p>
-      <div class="row">
-        <button id="speakBtn" class="btn" title="把当前语料文本转成音调播放——每个字符一个音高，你会"听到"模型在说什么">让模型朗读</button>
-        <span class="hint" id="speakInfo"></span>
+      <h2>玖 · 语音模型（旋律序列）</h2>
+      <p class="muted">旋律 = <b>一串音高值</b>（简谱 1-7 + 0 休止）。训练它"猜下一个音"——学会后模型能<b>自己续写旋律并演奏</b>。</p>
+      <div class="corpus-pick" id="melodyPick">
+        ${MELODIES.map((m) => `<button class="chip" data-mel="${m.id}">${m.name}</button>`).join('')}
       </div>
-      <div class="howto">「让模型朗读」把当前语料转成音调序列播放（每个字符一个音高）。<br>真实语音模型（ASR/TTS）把声波变成数字（频谱），再用序列模型处理。<b>多模态</b> = 把图像/声音都变成数字序列，交给同一个"猜下一个"模型——如 CLIP 把图与文对齐，GPT-4V 能同时看和听。</div>
+      <div class="row">
+        <label title="旋律模型的训练步数">步数 <input id="melSteps" value="2000" size="5"></label>
+        <button id="melTrainBtn" class="btn" title="用旋律的音高序列训练模型（猜下一个音）">开始训练</button>
+        <button id="melGenBtn" class="btn ghost" disabled title="从旋律开头续写一段新旋律——模型作曲">模型作曲</button>
+        <button id="melPlayBtn" class="btn ghost" disabled title="播放当前旋律（目标或模型创作）">播放</button>
+        <span class="hint" id="melInfo"></span>
+      </div>
+      <div class="corpus-pick">
+        <input id="melText" value="11556654433221" size="18" title="或自己输入简谱：1-7 音符，0 休止">
+        <button id="melApplyBtn" class="chip" title="把输入框的简谱应用为训练数据">应用简谱</button>
+      </div>
+      <div class="viz-row">
+        <div class="viz"><div class="viz-title">音高阶梯（目标）</div><canvas id="melViz" class="canvas"></canvas></div>
+        <div class="viz"><div class="viz-title">模型续写 <span class="tag" id="melStage">未训练</span></div><canvas id="melGenViz" class="canvas"></canvas></div>
+      </div>
+      <div class="viz"><div class="viz-title">loss 曲线（旋律版）</div><canvas id="melLoss" class="canvas"></canvas></div>
+      <div class="howto">① 选一首旋律（或输入自己的简谱）→ ② 开始训练（看 loss 下降）→ ③ 「模型作曲」续写新旋律 → 「播放」听它创作<br>语音模型和文字模型是<b>同一个架构</b>——真实 TTS/ASR 把声波变成数字（频谱）后，同样是"猜下一个值"。</div>
     </section>
 
     <div id="achRoot"></div>
@@ -1087,42 +1107,71 @@ document.addEventListener('handcalc:calcwin', () => {
   checkAch()
 })
 
-// ---------- 图像模型（像素即序列）----------
-function buildPixel(pat) {
-  const seq = gridToSeq(pat.grid)
-  const cfg = { vocab_size: 2, block_size: 16, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
+// ---------- 图像模型（16×16 灰度，完整版）----------
+const pixLossChart = createLossChart($('pixLoss'))
+function buildPixel(pat, customSeq) {
+  const seq = customSeq || gridToSeq(pat.grid)
+  const grid = customSeq ? seqToGrid(customSeq) : pat.grid
+  const cfg = { vocab_size: 16, block_size: 32, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
   const { params } = createModel(cfg, 42)
-  state.pix = { seq, grid: pat.grid, params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), trained: false }
-  renderGrid($('pixTarget'), pat.grid)
-  renderGrid($('pixOut'), seqToGrid(Array(64).fill(0)))
+  state.pix = { seq, grid, params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), trained: false, losses: [] }
+  renderGrid($('pixTarget'), grid)
+  renderGrid($('pixOut'), seqToGrid(Array(256).fill(0)))
+  pixLossChart.clear()
   $('pixStage').textContent = '未训练'
   $('pixGenBtn').disabled = true
-  $('pixInfo').textContent = `图案「${pat.name}」已就绪 · 64 个像素`
+  $('pixInfo').textContent = `${pat ? '图案「' + pat.name + '」' : '你的画'}已就绪 · 256 个像素`
 }
+// 绘制板（用户自己画训练数据）
+let pixDraw = null
+$('pixDrawBtn').addEventListener('click', () => {
+  $('pixBoard').hidden = false
+  if (!pixDraw) {
+    pixDraw = attachDrawing($('pixBoard'), (seq) => {
+      buildPixel(null, seq)
+      $('pixInfo').textContent = '你的画已就绪，开始训练吧'
+    })
+  }
+  $('pixInfo').textContent = '在画板上涂画，模型将学习你的图案'
+})
+$('pixClearBtn').addEventListener('click', () => { if (pixDraw) pixDraw.clear() })
 function trainPixel() {
   const p = state.pix
   if (!p) return
   const L = p.seq.length
+  const total = parseInt($('pixSteps').value) || 2000
+  p.losses = []
+  pixLossChart.clear()
   let done = 0
   const loop = () => {
-    const k = 200
-    for (let i = 0; i < k && done < 2000; i++, done++) {
+    const k = 100
+    for (let i = 0; i < k && done < total; i++, done++) {
       const start = Math.floor(Math.random() * (L - p.cfg.block_size))
-      trainStep(p.params, p.seq.slice(start, start + p.cfg.block_size), p.seq.slice(start + 1, start + p.cfg.block_size + 1), p.cfg, p.opt)
+      const { loss } = trainStep(p.params, p.seq.slice(start, start + p.cfg.block_size), p.seq.slice(start + 1, start + p.cfg.block_size + 1), p.cfg, p.opt)
+      p.losses.push(loss)
     }
-    $('pixInfo').textContent = `训练中… ${done}/2000`
-    if (done < 2000) requestAnimationFrame(loop)
-    else { p.trained = true; $('pixGenBtn').disabled = false; $('pixStage').textContent = '已学会'; $('pixInfo').textContent = '训练完成，点「生成」看它画' }
+    pixLossChart.push(p.losses[p.losses.length - 1])
+    pixLossChart.draw()
+    $('pixInfo').textContent = `训练中… ${done}/${total}`
+    if (done < total) requestAnimationFrame(loop)
+    else { p.trained = true; $('pixGenBtn').disabled = false; $('pixStage').textContent = '已学会'; $('pixInfo').textContent = '完成！点「生成」看它画' }
   }
   loop()
 }
 function genPixel() {
   const p = state.pix
   if (!p || !p.trained) return
-  const gen = sample(p.params, p.seq.slice(0, 4), 60, p.cfg, { temperature: 0.05 })
-  renderGrid($('pixOut'), seqToGrid(gen.slice(0, 64)))
+  const gen = sample(p.params, p.seq.slice(0, 8), 248, p.cfg, { temperature: 0.05 })
+  const full = gen.slice(0, 256)
+  const out = $('pixOut')
+  let i = 0
+  const anim = setInterval(() => {
+    i += 8
+    renderGrid(out, seqToGrid(full.slice(0, i)))
+    if (i >= 256) { clearInterval(anim); renderGrid(out, seqToGrid(full)); $('pixInfo').textContent = '生成完成——它画出了它学到的图案' }
+  }, 30)
 }
-document.querySelectorAll('#pixelPick .chip').forEach((b) => {
+document.querySelectorAll('#pixelPick .chip[data-pix]').forEach((b) => {
   b.addEventListener('click', () => {
     const pat = PIXEL_PATTERNS.find((x) => x.id === b.dataset.pix)
     if (pat) buildPixel(pat)
@@ -1132,28 +1181,71 @@ $('pixTrainBtn').addEventListener('click', trainPixel)
 $('pixGenBtn').addEventListener('click', genPixel)
 buildPixel(PIXEL_PATTERNS[0])
 
-// ---------- 语音演示（Web Audio：让模型"朗读"）----------
-let audioCtx = null
-$('speakBtn').addEventListener('click', () => {
-  const text = $('corpus').value.slice(0, 120)
-  if (!text) { alert('先选择或输入语料'); return }
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-  audioCtx.resume()
-  const t0 = audioCtx.currentTime
-  const dur = 0.05
-  text.split('').forEach((ch, i) => {
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.type = 'triangle'
-    osc.frequency.value = 200 + (ch.charCodeAt(0) % 40) * 16
-    gain.gain.setValueAtTime(0.12, t0 + i * dur)
-    gain.gain.exponentialRampToValueAtTime(0.001, t0 + (i + 1) * dur)
-    osc.connect(gain).connect(audioCtx.destination)
-    osc.start(t0 + i * dur)
-    osc.stop(t0 + (i + 1) * dur)
-  })
-  $('speakInfo').textContent = `正在朗读前 ${text.length} 个字符（每个字符一个音高）`
+// ---------- 语音模型（旋律序列，完整版）----------
+const melLossChart = createLossChart($('melLoss'))
+function buildMelody(seq, name) {
+  const cfg = { vocab_size: 8, block_size: 16, n_layer: 1, n_head: 1, n_embd: 8, bias: true }
+  const { params } = createModel(cfg, 42)
+  state.mel = { seq, name: name || '自定义', params, cfg, opt: createOptimizer(params, { type: 'adam', lr: 0.05 }), trained: false, composed: null, losses: [] }
+  renderMelody($('melViz'), seq)
+  renderMelody($('melGenViz'), [])
+  melLossChart.clear()
+  $('melStage').textContent = '未训练'
+  $('melGenBtn').disabled = true
+  $('melPlayBtn').disabled = false
+  $('melInfo').textContent = `${name || '自定义旋律'}已就绪 · ${seq.length} 个音`
+}
+function trainMelody() {
+  const m = state.mel
+  const L = m.seq.length
+  const total = parseInt($('melSteps').value) || 2000
+  m.losses = []
+  melLossChart.clear()
+  let done = 0
+  const loop = () => {
+    const k = 100
+    for (let i = 0; i < k && done < total; i++, done++) {
+      const start = Math.floor(Math.random() * Math.max(1, L - m.cfg.block_size))
+      const { loss } = trainStep(m.params, m.seq.slice(start, start + m.cfg.block_size), m.seq.slice(start + 1, start + m.cfg.block_size + 1), m.cfg, m.opt)
+      m.losses.push(loss)
+    }
+    melLossChart.push(m.losses[m.losses.length - 1])
+    melLossChart.draw()
+    $('melInfo').textContent = `训练中… ${done}/${total}`
+    if (done < total) requestAnimationFrame(loop)
+    else { m.trained = true; $('melGenBtn').disabled = false; $('melStage').textContent = '已学会'; $('melInfo').textContent = '完成！「模型作曲」让它续写旋律' }
+  }
+  loop()
+}
+function genMelody() {
+  const m = state.mel
+  if (!m.trained) return
+  const gen = sample(m.params, m.seq.slice(0, 8), 40, m.cfg, { temperature: 0.6 })
+  m.composed = gen.slice(0, 48)
+  renderMelody($('melGenViz'), m.composed)
+  $('melInfo').textContent = '模型创作了 48 个音——点「播放」听它写的新旋律'
+}
+$('melPlayBtn').addEventListener('click', () => {
+  const m = state.mel
+  if (!m) { alert('先选旋律'); return }
+  const seq = m.composed || m.seq
+  playMelody(seq)
+  $('melInfo').textContent = `♪ 播放「${m.composed ? '模型创作' : m.name}」…`
 })
+document.querySelectorAll('#melodyPick .chip').forEach((b) => {
+  b.addEventListener('click', () => {
+    const m = MELODIES.find((x) => x.id === b.dataset.mel)
+    if (m) { $('melText').value = m.seq; buildMelody(parseMelody(m.seq), m.name) }
+  })
+})
+$('melApplyBtn').addEventListener('click', () => {
+  const s = $('melText').value.replace(/[^1-7]/g, '')
+  if (!s) { alert('简谱只支持 1-7 数字'); return }
+  buildMelody(parseMelody(s), '自定义旋律')
+})
+$('melTrainBtn').addEventListener('click', trainMelody)
+$('melGenBtn').addEventListener('click', genMelody)
+buildMelody(parseMelody(MELODIES[0].seq), MELODIES[0].name)
 
 // ---------- 启动 ----------
 renderAch()
