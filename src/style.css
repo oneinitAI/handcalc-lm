@@ -816,6 +816,69 @@ textarea { border: 1.5px dashed rgba(43, 38, 32, 0.3) !important; }
 .progress-track { height: 10px !important; background: transparent !important; border-bottom: 1.5px solid rgba(43,38,32,0.4) !important; }
 .progress-fill { background: var(--accent) !important; }
 
+/* ============================================================
+ * 做题视觉重锤：一眼就是"演草纸做题"
+ * 章节=题目 · 结果=答案 · 批注=手写朱批 · 纸有斑点
+ * ============================================================ */
+
+/* 章节 = 题目（题壹：… 楷体大字 + 粗下划线） */
+.card h2 {
+  font-family: var(--kai);
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 5px;
+  transform: skewX(-8deg);
+  display: inline-block;
+  color: var(--ink);
+  margin-bottom: 20px;
+}
+.card h2::before { content: '题 '; color: var(--accent); }
+.card h2::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: rgba(192, 69, 44, 0.5);
+  margin-top: 8px;
+  transform: skewX(-8deg);
+}
+
+/* 结果 = 答案（楷体大字 + 朱砂下划线 + "答："） */
+.gen, .ms-final, .ans-text, #quantOut {
+  font-family: var(--kai);
+  font-size: 24px;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 8px;
+  margin-top: 16px;
+}
+.gen::before, #quantOut::before { content: '答：'; color: var(--accent); }
+.ms-final::before { content: '答案：'; color: var(--accent); }
+.ans-text::before { content: '答：'; color: var(--accent); font-size: 16px; }
+.pixel-canvas, .dict-canvas { border-bottom: 2px solid var(--accent); }
+
+/* 批注 = 朱砂手写（括号批） */
+.tag, .hint, .muted, .viz-title { font-family: var(--kai); }
+.tag { color: var(--accent); }
+.hint::before { content: '（'; color: var(--accent); }
+.hint::after { content: '）'; color: var(--accent); }
+
+/* 纸质感：斑点 + 边角 */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(120, 90, 50, 0.06), transparent 30%),
+    radial-gradient(circle at 70% 20%, rgba(120, 90, 50, 0.04), transparent 18%),
+    radial-gradient(circle at 50% 82%, rgba(120, 90, 50, 0.07), transparent 24%),
+    radial-gradient(circle at 10% 70%, rgba(120, 90, 50, 0.05), transparent 20%);
+}
+
+/* 标题：手写大字 */
+.title { font-family: var(--kai); transform: rotate(-3deg) scale(1.12); transform-origin: left center; }
+
+/* 阶段条 = 题目序号 */
+.stage-dot { font-family: var(--kai); font-size: 15px; }
+
 /* 术语表 + FAQ */
 .glossary { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; font-size: 13px; }
 .gloss-item b { color: var(--accent); margin-right: 6px; }
