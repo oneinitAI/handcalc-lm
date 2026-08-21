@@ -38,6 +38,8 @@ const state = {
   stage: 'pre',  // 'pre' 预训练 | 'sft' 微调 | 'dpo' 对齐
   blind: null,   // 盲测数据 { a, b, correctIsA }
   genCount: 0,   // 生成次数（Karpathy 彩蛋）
+  initLoss: null,     // 初始 loss（前 10 步平均），进度条基准
+  stopNotified: false, // 自动停止提示标志
 }
 
 // ---------- DOM ----------
@@ -85,6 +87,10 @@ app.innerHTML = `
         <button id="resetBtn" class="btn ghost">重建</button>
       </div>
       <p class="muted" id="modelInfo"></p>
+      <div class="train-progress">
+        <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+        <span id="progressText" class="progress-text">—</span>
+      </div>
       <div class="viz-row">
         <div class="viz">
           <div class="viz-title">loss 曲线 <span class="tag" id="lossTag">—</span></div>
@@ -187,6 +193,10 @@ function buildModel() {
   state.opt = createOptimizer(params, { type: 'adam', lr: parseFloat($('lr').value) })
   state.ids = text.split('')
   state.losses = []
+  state.initLoss = null
+  state.stopNotified = false
+  $('progressFill').style.width = '0%'
+  $('progressText').textContent = '—'
   state.sftData = null
   state.snap = null
   state.showingBefore = false
@@ -212,8 +222,47 @@ function runSteps(n) {
     const { loss } = trainStep(model.params, x, y, model.cfg, opt)
     state.losses.push(loss)
   }
+  // 初始 loss 基准（前 10 步平均）
+  if (!state.initLoss && state.losses.length >= 10) {
+    let s = 0
+    for (let i = 0; i < 10; i++) s += state.losses[i]
+    state.initLoss = s / 10
+  }
   lossChart.push(state.losses[state.losses.length - 1])
   if (state.losses.length % 50 === 0) heatmap.draw()
+  updateProgress()
+  checkStop()
+}
+
+/** 进度条：loss 从初始降到 25% 视为"学到位"（0~100%） */
+function updateProgress() {
+  const cur = state.losses[state.losses.length - 1]
+  if (!state.initLoss || state.losses.length < 10) { $('progressText').textContent = '—'; return }
+  const target = state.initLoss * 0.25
+  const p = Math.max(0, Math.min(1, (state.initLoss - cur) / (state.initLoss - target)))
+  $('progressFill').style.width = (p * 100).toFixed(0) + '%'
+  $('progressText').textContent = p >= 1 ? '已学到位' : `已学 ${(p * 100).toFixed(0)}%`
+}
+
+/** 自动停止检测：loss 到 25% 或停滞 300 步 */
+function checkStop() {
+  if (!state.training || state.stopNotified || !state.initLoss) return
+  const L = state.losses.length
+  const cur = state.losses[L - 1]
+  if (cur <= state.initLoss * 0.25) {
+    state.stopNotified = true
+    stopTraining()
+    $('modelInfo').textContent = '✅ 模型已基本学会语料规律（loss 降到初始 25%），可以验收了。也可以继续训练微调。'
+    return
+  }
+  if (L > 400 && L % 100 === 0) {
+    const before = state.losses[L - 300]
+    if (before - cur < state.initLoss * 0.01) {
+      state.stopNotified = true
+      stopTraining()
+      $('modelInfo').textContent = '⏸ loss 已停滞（300 步无明显下降）——可能学到位了，或学习率不合适。可继续或调整参数。'
+    }
+  }
 }
 
 function tick() {
@@ -332,6 +381,10 @@ $('sftBtn').addEventListener('click', () => {
   state.stage = 'sft'
   updateStage()
   state.losses = []
+  state.initLoss = null
+  state.stopNotified = false
+  $('progressFill').style.width = '0%'
+  $('progressText').textContent = '—'
   lossChart.clear()
   startTraining()
 })
