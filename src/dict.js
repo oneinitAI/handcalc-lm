@@ -34,18 +34,21 @@ export function initDict(root) {
 }
 
 function showList() {
-  _root.innerHTML = `<div class="dict-grid">${DICT_ITEMS.map((it, i) => `
-      <div class="dict-item card" data-i="${i}" title="点击查看详情页">
-        <div class="dict-term">${it.term} <span class="tag">${it.cat}</span></div>
-        <div class="dict-one">${it.one}</div>
+  _root.innerHTML = `<div class="dict-grid" role="list">${DICT_ITEMS.map((it, i) => `
+      <button class="dict-item card" data-i="${i}" role="listitem" tabindex="0" title="点击查看详情页" aria-label="${it.term}：${it.one}">
+        <span class="dict-term">${it.term} <span class="tag">${it.cat}</span></span>
+        <span class="dict-one">${it.one}</span>
         <canvas class="dict-canvas" data-i="${i}"></canvas>
-        <div class="dict-hint">点击进入详情 →</div>
-      </div>`).join('')}</div>`
+        <span class="dict-hint">点击进入详情 →</span>
+      </button>`).join('')}</div>`
   _root.querySelectorAll('.dict-canvas').forEach((cv) => {
     startAnim(cv, DICT_ITEMS[+cv.dataset.i].draw)
   })
   _root.querySelectorAll('.dict-item').forEach((card) => {
     card.addEventListener('click', () => showDetail(+card.dataset.i))
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDetail(+card.dataset.i) }
+    })
     card.style.cursor = 'pointer'
   })
 }
@@ -84,6 +87,8 @@ export function dictOpenDetail(term) {
   if (btn) btn.classList.add('on')
   const panel = document.getElementById('tab-dict')
   if (panel) panel.classList.add('on')
+  // 同步 hash（#/dict），保持路由一致
+  try { history.replaceState(null, '', '#/dict') } catch (e) { /* 忽略 */ }
   // 移动端收起抽屉
   document.querySelectorAll('.tabs, .nav-toggle').forEach((el) => el.classList.remove('open'))
   // 找术语

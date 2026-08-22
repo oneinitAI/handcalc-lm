@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="5" y="5" width="54" height="54" rx="9" fill="#c0452c"/>
+  <rect x="5" y="5" width="54" height="54" rx="9" fill="none" stroke="#8a3018" stroke-width="2.5"/>
+  <rect x="8" y="8" width="48" height="48" rx="7" fill="none" stroke="#e8b8a8" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="32" y="45" font-family="Kaiti SC, KaiTi, STKaiti, serif" font-size="34" font-weight="bold" fill="#fdfcf9" text-anchor="middle">学</text>
+</svg>

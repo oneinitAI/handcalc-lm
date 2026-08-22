@@ -3,12 +3,38 @@
  * 复古画纸 · 手写体 · 零卡片 · wired 手绘控件
  * ============================================================ */
 
+/* 自托管字体（大陆可直接加载，不再依赖 Google Fonts） */
+@font-face {
+  font-family: 'Patrick Hand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/patrick-hand-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Comic Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./assets/fonts/comic-neue-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Comic Neue';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/comic-neue-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --paper: #f9f7f4;      /* 暖米白画纸 */
   --paper-2: #fdfcf9;
   --ink: #2f2a24;        /* 墨 */
   --ink-soft: #6b6257;
-  --ink-faint: #9c9285;
+  --ink-faint: #7a7065;  /* 加深到 ≈4.6:1（WCAG AA），原 #9c9285 仅 2.9:1 */
   --accent: #c0452c;     /* 朱砂 */
   --glow: #1f7a6d;       /* 青磷 */
   --line: #d4cdc0;       /* 铅笔线 */
@@ -292,11 +318,16 @@ textarea { border: 1.5px dashed rgba(47, 42, 36, 0.3); }
 
 /* ===== 词典 / 论文 / 前沿 / 成就 ===== */
 .dict-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.dict-item { padding: 6px 4px; transform: rotate(-0.5deg); }
-.dict-item:nth-child(even) { transform: rotate(0.6deg) translateY(12px); }
-.dict-term { font-family: var(--hand); font-size: 22px; font-weight: 700; color: var(--accent); transform: skewX(-4deg); display: inline-block; }
-.dict-one { font-family: var(--hand); font-size: 15px; color: var(--ink-soft); margin: 4px 0 8px; }
-.dict-hint { font-family: var(--hand); font-size: 13px; color: var(--ink-faint); margin-top: 4px; }
+.dict-item {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none; font: inherit;
+  padding: 6px 4px;
+}
+.dict-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dict-item:nth-child(even) { transform: none; }
+.dict-term { font-family: var(--hand); font-size: 22px; font-weight: 700; color: var(--accent); display: inline-block; }
+.dict-one { display: block; font-family: var(--hand); font-size: 15px; color: var(--ink-soft); margin: 4px 0 8px; }
+.dict-hint { display: block; font-family: var(--hand); font-size: 13px; color: var(--ink-faint); margin-top: 4px; }
 .paper-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .paper { padding: 6px 4px; transform: rotate(-0.4deg); }
 .paper:nth-child(even) { transform: rotate(0.5deg) translateY(10px); }
@@ -389,6 +420,36 @@ wired-slider { --wired-highlight: var(--accent); }
 }
 
 /* ===== 响应式 ===== */
+/* 新手入口按钮 */
+.start-here {
+  font-family: var(--hand); font-size: 15px;
+  padding: 9px 20px; border: 2px solid var(--accent); color: var(--accent);
+  background: transparent; border-radius: 8px 3px 10px 2px; cursor: pointer;
+  margin-top: 4px;
+}
+.start-here:hover { background: rgba(192, 69, 44, 0.08); }
+
+/* 回到顶部 */
+.to-top {
+  position: fixed; bottom: 20px; right: 16px; z-index: 45;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid var(--ink); background: var(--paper-2);
+  font-family: var(--hand); font-size: 18px; color: var(--ink);
+  cursor: pointer; box-shadow: 2px 2px 0 rgba(47, 42, 36, 0.15);
+  opacity: 0; pointer-events: none; transition: opacity .3s;
+}
+.to-top.show { opacity: 1; pointer-events: auto; }
+.to-top:hover { color: var(--accent); border-color: var(--accent); }
+
+/* 成就顶栏徽章 */
+.ach-badge {
+  font-family: var(--hand); font-size: 13px; letter-spacing: 1px;
+  color: var(--accent); background: transparent; border: none;
+  border-bottom: 2px dotted var(--accent); cursor: pointer;
+  margin-left: 3vw; padding: 2px 4px;
+}
+.ach-badge:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
 /* ============================================================
  * 板正 + 配色修正层（手绘线条保留，组件全部板板正正）
  * ============================================================ */
@@ -492,6 +553,15 @@ wired-button.wired-rendered svg, wired-slider.wired-rendered svg { visibility: v
 .nav-toggle.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
 @media (max-width: 560px) {
+  /* ---- 横向溢出兜底（报告#1：390 视口实测 418px 整页晃动） ---- */
+  html, body { overflow-x: clip; }
+  body { background-attachment: scroll; } /* iOS Safari 的 fixed 背景有渲染 bug + 重绘开销 */
+  .stage, .row, .viz-row, .pair, .dict-grid, .paper-grid, .feat-grid, .ach-grid, .glossary { min-width: 0; }
+  .row { flex-wrap: wrap; }
+  .row > * { max-width: 100%; flex: 1 1 auto; }
+  input, textarea, select, wired-input, wired-textarea, wired-select { max-width: 100% !important; }
+  .gen, .ms-final, .ans-text, .mm-track, .ms-wte, .mono { overflow-wrap: anywhere; word-break: break-word; }
+
   /* ---- 导航折叠：汉堡 + 下拉抽屉 ---- */
   .nav-toggle { display: flex; }
   .tabs {

@@ -4,11 +4,14 @@
 // ============================================================
 
 export function initParticles(canvas) {
+  if (!canvas) return
+  // 尊重系统"减弱动态效果"设置：直接不启动粒子
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
   const dpr = window.devicePixelRatio || 1
   let w = 0, h = 0, ctx = null
   const chars = '0123456789abcdefAI 学习本月光荷塘注意力模型token梯度loss数据曲线像素音高猜字魔法'.split('')
   const parts = []
-  const N = 80
+  const N = window.innerWidth < 560 ? 30 : 80 // 移动端减半，省电
 
   function resize() {
     w = window.innerWidth

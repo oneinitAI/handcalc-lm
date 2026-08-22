@@ -81,6 +81,7 @@ app.innerHTML = `
     <header class="masthead">
       <h1 class="title">AI <span class="hl">学习本</span></h1>
       <p class="sub">翻开这本笔记，把 AI 从头看懂</p>
+      <button id="achBadge" class="ach-badge" title="已解锁的成就，点击查看">成就 0/10</button>
       <a class="gh-badge" href="https://github.com/oneinitAI/handcalc-lm" target="_blank" rel="noopener" title="开源仓库，欢迎 star">GitHub 源码 ↗</a>
     </header>
     <nav class="tabs" id="mainTabs">
@@ -99,6 +100,7 @@ app.innerHTML = `
       <p>这里是一个让你<b>亲手训练迷你大模型</b>的实验台——一个只会"猜下一个字"的小机器，在你的浏览器里<b>真实训练</b>，没有任何预设剧本。</p>
       <p class="intro-path">你的旅程：<b>壹</b> 选语料 · <b>贰</b> 训练它学说话 · <b>叁</b> 微调它会回答 · <b>肆</b> 生成看它想什么 · <b>伍</b> 对齐让它变讨喜 · <b>陆</b> 显微镜看穿每一步</p>
       <p class="muted">每张卡片下方有「怎么做」指引；右上「翻面」可看背后的公式。</p>
+      <p><button id="startHere" class="start-here" title="带你到训练区：选语料 → 训练 → 生成，五分钟看到模型学会说话">新手从这里开始 →</button></p>
       <p class="note">（AI 味这么重，太八股了 <span class="yawn">(￣へ￣)</span> 可是 AI 为啥会这么说呢……）</p>
     </div>
 
@@ -218,7 +220,7 @@ app.innerHTML = `
         <span class="hint">问答占比越高越会回答，但语料续写能力越容易被覆盖（灾难性遗忘）</span>
       </div>
       <div class="row">
-        <button id="sftBtn" class="btn" title="开始微调：用问答对继续训练当前模型（学习率已自动调低，混合比例防遗忘）。微调后模型会"回答问题"">开始微调</button>
+        <button id="sftBtn" class="btn" title="开始微调：用问答对继续训练当前模型（学习率已自动调低，混合比例防遗忘）。微调后模型就会『回答问题』">开始微调</button>
         <button id="snapBtn" class="btn ghost" title="记录微调前的权重快照，之后可以一键对比"微调前只会续写 vs 微调后会回答"">记快照（微调前）</button>
         <button id="cmpBtn" class="btn ghost" disabled title="在当前权重和快照（微调前）之间切换，对比同一个模型微调前后的行为">切到：微调前</button>
       </div>
@@ -328,6 +330,29 @@ app.innerHTML = `
     <div id="achRoot"></div>
     </div>
     <div id="tab-image" class="tab-panel">
+      <section class="card" id="pixelCard">
+        <h2>壹 · 图像模型（像素即序列）</h2>
+        <p class="muted">图像在模型眼里 = <b>256 个像素值（16×16 灰度 16 级）</b>。训练它"猜下一个像素"——和文字模型<b>同一个架构</b>，换数据就能画图。</p>
+        <div class="corpus-pick" id="pixelPick">
+          ${PIXEL_PATTERNS.map((p) => `<button class="chip" data-pix="${p.id}">${p.name}</button>`).join('')}
+          <button class="chip" id="pixDrawBtn">自己画</button>
+          <button class="chip" id="pixClearBtn">清空画板</button>
+        </div>
+        <div class="row">
+          <label title="图像模型的训练步数。像素序列 256 个，比文本更快学会">步数 <input id="pixSteps" value="2000" size="5"></label>
+          <label title="学习率=参数更新步长。大=学得快但可能震荡">学习率 <input id="pixLr" value="0.05" size="5"></label>
+          <label title="生成温度：低=稳定按学到的画，高=花样多（更有创造力）">温度 <input id="pixTemp" value="0.05" size="4"></label>
+          <button id="pixTrainBtn" class="btn" title="用像素序列训练模型（和文本训练同一套代码，看 loss 下降）">开始训练</button>
+          <button id="pixGenBtn" class="btn ghost" disabled title="从图案开头的 8 个像素开始生成整幅图（动画逐像素点亮）">生成</button>
+          <span class="hint" id="pixInfo"></span>
+        </div>
+        <div class="viz-row">
+          <div class="viz"><div class="viz-title">目标（选图案 / 自己画）</div><canvas id="pixTarget" class="pixel-canvas"></canvas><canvas id="pixBoard" class="pixel-canvas" hidden title="在这里涂画，作为训练数据"></canvas></div>
+          <div class="viz"><div class="viz-title">模型生成 <span class="tag" id="pixStage">未训练</span></div><canvas id="pixOut" class="pixel-canvas"></canvas><div id="pixHistory" class="gen-history"></div></div>
+        </div>
+        <div class="viz"><div class="viz-title">loss 曲线（像素版）</div><canvas id="pixLoss" class="canvas"></canvas></div>
+        <div class="howto">① 选图案，或点「自己画」在画板上涂一个图形 → ② 开始训练（看 loss 下降）→ ③ 生成，看模型从噪声逐步"画出"它学到的<br>它和文字模型是<b>同一个 Transformer</b>，只是把"字"换成 16 级灰度像素——图像生成模型（扩散模型）的雏形。</div>
+      </section>
       <div class="teach">
         <h3>动手① 像素 = 数字</h3>
         <p>把鼠标悬停在图案格子上，看每个像素的灰度数字（0~15）——图就是一串数字。</p>
@@ -345,6 +370,16 @@ app.innerHTML = `
         </div>
       </div>
       <div class="teach">
+        <h3>动手④ 微调：让它学会"按提示画图"</h3>
+        <p>把多个图案各配一个"提示标记"一起训练——之后你"告诉"它画哪个，它就画哪个。<b>文生图的雏形</b>。</p>
+        <div class="row">
+          <button id="pixFTBtn" class="btn" title="用 圆/心形/H 三个图案 + 各自提示标记一起训练">开始微调</button>
+          <span class="hint" id="pixFTInfo"></span>
+        </div>
+        <div class="row" id="pixFTPick"></div>
+        <canvas id="pixFTOut" class="pixel-canvas"></canvas>
+      </div>
+      <div class="teach">
         <h3>动手⑤ 图案插值（从 A 渐变成 B）</h3>
         <p>选两个图案，看像素值平滑过渡——这是"图像空间是连续的"的直接体验。</p>
         <div class="row">
@@ -355,39 +390,6 @@ app.innerHTML = `
         </div>
         <canvas id="pixInterOut" class="pixel-canvas"></canvas>
       </div>
-      <div class="teach">
-        <h3>动手④ 微调：让它学会"按提示画图"</h3>
-        <p>把多个图案各配一个"提示标记"一起训练——之后你"告诉"它画哪个，它就画哪个。<b>文生图的雏形</b>。</p>
-        <div class="row">
-          <button id="pixFTBtn" class="btn" title="用 圆/心形/H 三个图案 + 各自提示标记一起训练">开始微调</button>
-          <span class="hint" id="pixFTInfo"></span>
-        </div>
-        <div class="row" id="pixFTPick"></div>
-        <canvas id="pixFTOut" class="pixel-canvas"></canvas>
-      </div>
-    <section class="card" id="pixelCard">
-      <h2>捌 · 图像模型（像素即序列）</h2>
-      <p class="muted">图像在模型眼里 = <b>256 个像素值（16×16 灰度 16 级）</b>。训练它"猜下一个像素"——和文字模型<b>同一个架构</b>，换数据就能画图。</p>
-      <div class="corpus-pick" id="pixelPick">
-        ${PIXEL_PATTERNS.map((p) => `<button class="chip" data-pix="${p.id}">${p.name}</button>`).join('')}
-        <button class="chip" id="pixDrawBtn">自己画</button>
-        <button class="chip" id="pixClearBtn">清空画板</button>
-      </div>
-      <div class="row">
-        <label title="图像模型的训练步数。像素序列 256 个，比文本更快学会">步数 <input id="pixSteps" value="2000" size="5"></label>
-        <label title="学习率=参数更新步长。大=学得快但可能震荡">学习率 <input id="pixLr" value="0.05" size="5"></label>
-        <label title="生成温度：低=稳定按学到的画，高=花样多（更有创造力的"手抖"）">温度 <input id="pixTemp" value="0.05" size="4"></label>
-        <button id="pixTrainBtn" class="btn" title="用像素序列训练模型（和文本训练同一套代码，看 loss 下降）">开始训练</button>
-        <button id="pixGenBtn" class="btn ghost" disabled title="从图案开头的 8 个像素开始生成整幅图（动画逐像素点亮）">生成</button>
-        <span class="hint" id="pixInfo"></span>
-      </div>
-      <div class="viz-row">
-        <div class="viz"><div class="viz-title">目标（选图案 / 自己画）</div><canvas id="pixTarget" class="pixel-canvas"></canvas><canvas id="pixBoard" class="pixel-canvas" hidden title="在这里涂画，作为训练数据"></canvas></div>
-        <div class="viz"><div class="viz-title">模型生成 <span class="tag" id="pixStage">未训练</span></div><canvas id="pixOut" class="pixel-canvas"></canvas><div id="pixHistory" class="gen-history"></div></div>
-      </div>
-      <div class="viz"><div class="viz-title">loss 曲线（像素版）</div><canvas id="pixLoss" class="canvas"></canvas></div>
-      <div class="howto">① 选图案，或点「自己画」在画板上涂一个图形 → ② 开始训练（看 loss 下降）→ ③ 生成，看模型从噪声逐步"画出"它学到的<br>它和文字模型是<b>同一个 Transformer</b>，只是把"字"换成 16 级灰度像素——图像生成模型（扩散模型）的雏形。</div>
-    </section>
     </div>
     <div id="tab-voice" class="tab-panel">
       <div class="teach">
@@ -427,7 +429,7 @@ app.innerHTML = `
         <canvas id="melInterOut" class="canvas"></canvas>
       </div>
     <section class="card" id="voiceCard">
-      <h2>玖 · 语音模型（旋律序列）</h2>
+      <h2>壹 · 语音模型（旋律序列）</h2>
       <p class="muted">旋律 = <b>一串音高值</b>（简谱 1-7 + 0 休止）。训练它"猜下一个音"——学会后模型能<b>自己续写旋律并演奏</b>。</p>
       <div class="corpus-pick" id="melodyPick">
         ${MELODIES.map((m) => `<button class="chip" data-mel="${m.id}">${m.name}</button>`).join('')}
@@ -472,7 +474,7 @@ app.innerHTML = `
           <span class="hint" id="mmInfo"></span>
         </div>
         <div class="row">
-          <button id="mmTxtBtn" class="btn ghost" disabled title="输入 文标记+月光 → 模型续写荷塘月色风格文本">续写文本</button>
+          <button id="mmTxtBtn" class="btn ghost" disabled title="输入『文』标记 + 月光 → 模型续写荷塘月色风格文本">续写文本</button>
           <button id="mmImgBtn" class="btn ghost" disabled title="输入 图标记 → 模型生成图像">画图</button>
           <button id="mmAudBtn" class="btn ghost" disabled title="输入 音标记 → 模型作曲并播放">作曲并播放</button>
         </div>
@@ -568,6 +570,7 @@ app.innerHTML = `
       </div>
     </details>
   </aside>
+  <button id="toTop" class="to-top" title="回到顶部" aria-label="回到顶部">↑</button>
 `
 
 const $ = (id) => document.getElementById(id)
@@ -1415,9 +1418,11 @@ function renderAch() {
   const root = $('achRoot')
   if (!root) return
   const earned = new Set(state.ach.earned)
+  const badge = $('achBadge')
+  if (badge) badge.textContent = '成就 ' + earned.size + '/' + ACHIEVEMENTS.length
   root.innerHTML = `
     <section class="card">
-      <h2>拾 · 成就 <span class="tag">${earned.size}/${ACHIEVEMENTS.length}</span></h2>
+      <h2>捌 · 成就 <span class="tag">${earned.size}/${ACHIEVEMENTS.length}</span></h2>
       <div class="ach-grid">
         ${ACHIEVEMENTS.map((a) => `<div class="ach-item ${earned.has(a.id) ? 'earned' : ''}" title="${a.desc}">
           <div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('')}
@@ -1973,29 +1978,60 @@ function renderRefs() {
 }
 
 // ---------- 启动 ----------
-// Tab 页签切换（文本/图像/语音）
+// Tab 切换：hash 路由（#/transformer）+ 动态 title，可直达分享、可被收录
+const TAB_NAMES = { text: '文本模型', image: '图像模型', voice: '语音模型', multi: '多模态', trans: 'Transformer', dict: '词典', frontier: '前沿', papers: '论文' }
+function goto(tab, noHistory) {
+  if (!TAB_NAMES[tab]) tab = 'text'
+  document.querySelectorAll('.tab-btn').forEach((x) => { x.classList.remove('on'); x.setAttribute('aria-selected', 'false') })
+  document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('on'))
+  const b = document.querySelector('.tab-btn[data-tab="' + tab + '"]')
+  if (b) { b.classList.add('on'); b.setAttribute('aria-selected', 'true') }
+  const panel = document.getElementById('tab-' + tab)
+  if (panel) panel.classList.add('on')
+  // 移动端：选完 tab 收起抽屉
+  document.querySelectorAll('.tabs, .nav-toggle').forEach((el) => el.classList.remove('open'))
+  document.title = 'AI 学习本 · ' + TAB_NAMES[tab]
+  if (!noHistory && location.hash !== '#/' + tab) {
+    try { history.replaceState(null, '', '#/' + tab) } catch (e) { /* 忽略 */ }
+  }
+  // 隐藏面板的 canvas 尺寸为 0，切回时重绘；wired 控件同理（wiredRender(true) 强制按真实尺寸重绘）
+  setTimeout(() => {
+    try {
+      document.querySelectorAll('wired-slider,wired-button,wired-input,wired-textarea,wired-select').forEach((el) => { if (el.wiredRender) el.wiredRender(true) })
+      tintWiredInputs()
+      lossChart.draw(); heatmap.draw(); attnHeatmap.draw()
+      pixLossChart.draw(); melLossChart.draw()
+      if (state.pix) { renderGrid($('pixTarget'), state.pix.grid); renderGrid($('pixOut'), seqToGrid(Array(256).fill(0))) }
+      if (state.mel) { renderMelody($('melViz'), state.mel.seq); renderMelody($('melGenViz'), state.mel.composed || []) }
+      redrawTrans()
+    } catch (e) { /* 忽略未就绪 */ }
+  }, 60)
+}
 document.querySelectorAll('.tab-btn').forEach((b) => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach((x) => x.classList.remove('on'))
-    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('on'))
-    b.classList.add('on')
-    document.getElementById('tab-' + b.dataset.tab).classList.add('on')
-    // 移动端：选完 tab 收起抽屉
-    document.querySelectorAll('.tabs, .nav-toggle').forEach((el) => el.classList.remove('open'))
-    // 隐藏面板的 canvas 尺寸为 0，切回时重绘；wired 控件同理（wiredRender(true) 强制按真实尺寸重绘）
-    setTimeout(() => {
-      try {
-        document.querySelectorAll('wired-slider,wired-button,wired-input,wired-textarea,wired-select').forEach((el) => { if (el.wiredRender) el.wiredRender(true) })
-        tintWiredInputs()
-        lossChart.draw(); heatmap.draw(); attnHeatmap.draw()
-        pixLossChart.draw(); melLossChart.draw()
-        if (state.pix) { renderGrid($('pixTarget'), state.pix.grid); renderGrid($('pixOut'), seqToGrid(Array(256).fill(0))) }
-        if (state.mel) { renderMelody($('melViz'), state.mel.seq); renderMelody($('melGenViz'), state.mel.composed || []) }
-        redrawTrans()
-      } catch (e) { /* 忽略未就绪 */ }
-    }, 60)
-  })
+  b.addEventListener('click', () => goto(b.dataset.tab))
 })
+window.addEventListener('hashchange', () => {
+  const tab = (location.hash || '').replace(/^#\/?/, '')
+  goto(tab, true)
+})
+// 初始：读 hash 直达对应 tab
+;(function initHash() {
+  const tab = (location.hash || '').replace(/^#\/?/, '')
+  if (TAB_NAMES[tab]) goto(tab, true)
+})()
+// 无障碍：tab 语义（tablist/tab/tabpanel + aria-selected）
+;(function initAria() {
+  const tabsNav = $('mainTabs')
+  if (tabsNav) tabsNav.setAttribute('role', 'tablist')
+  document.querySelectorAll('.tab-btn').forEach((x) => {
+    x.setAttribute('role', 'tab')
+    x.setAttribute('aria-selected', x.classList.contains('on') ? 'true' : 'false')
+  })
+  document.querySelectorAll('.tab-panel').forEach((p) => {
+    p.setAttribute('role', 'tabpanel')
+    if (!p.hasAttribute('tabindex')) p.setAttribute('tabindex', '0')
+  })
+})()
 renderAch()
 renderGlossary()
 initNotes()
@@ -2008,6 +2044,29 @@ const _navToggle = $('navToggle')
 if (_navToggle) {
   _navToggle.addEventListener('click', () => {
     document.querySelectorAll('.tabs, .nav-toggle').forEach((el) => el.classList.toggle('open'))
+  })
+}
+
+// 新手入口：跳到文本 tab 训练区
+const _start = $('startHere')
+if (_start) {
+  _start.addEventListener('click', () => {
+    goto('text')
+    setTimeout(() => { const c = $('dataCard'); if (c) c.scrollIntoView({ behavior: 'smooth' }) }, 80)
+  })
+}
+// 回到顶部
+const _toTop = $('toTop')
+if (_toTop) {
+  window.addEventListener('scroll', () => _toTop.classList.toggle('show', window.scrollY > 400), { passive: true })
+  _toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
+}
+// 成就顶栏徽章：跳到文本 tab 成就区
+const _achBadge = $('achBadge')
+if (_achBadge) {
+  _achBadge.addEventListener('click', () => {
+    goto('text')
+    setTimeout(() => { const a = $('achRoot'); if (a) a.scrollIntoView({ behavior: 'smooth' }) }, 80)
   })
 }
 

@@ -4,7 +4,7 @@
 
 在浏览器里**亲手训练一个迷你大模型**的交互式教学实验台——零安装、零依赖、真实计算、没有任何预设剧本。
 
-🔗 **在线体验：https://ai-notebook-seven.vercel.app**
+🔗 **在线体验：https://llm.bg4jts.cn**（备用：https://ai-notebook-seven.vercel.app）
 
 ## 它是什么
 
