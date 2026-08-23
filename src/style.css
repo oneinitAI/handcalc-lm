@@ -450,6 +450,18 @@ wired-slider { --wired-highlight: var(--accent); }
 }
 .ach-badge:hover { color: var(--ink); border-bottom-color: var(--ink); }
 
+/* 能力提示（醒目）：小模型生成质量说明，避免误解为 bug */
+.cap-note {
+  border: 2px dashed var(--accent);
+  background: rgba(192, 69, 44, 0.06);
+  padding: 10px 14px; margin: 14px 0;
+  border-radius: 4px;
+  font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+  line-height: 1.8;
+}
+.cap-note b { color: var(--accent); }
+[data-theme="dark"] .cap-note { background: rgba(255, 143, 92, 0.08); }
+
 /* ============================================================
  * 板正 + 配色修正层（手绘线条保留，组件全部板板正正）
  * ============================================================ */

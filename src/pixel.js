@@ -83,8 +83,12 @@ export const PIXEL_PATTERNS = [
 
 // ---- 序列转换 ----
 export function gridToSeq(grid) {
-  // 直接扁平化数字网格（修复：grid.join('') 会插入逗号导致负 token id）
-  return grid.flat().map((v) => Math.max(0, Math.min(15, v | 0)))
+  if (Array.isArray(grid[0])) {
+    // 数字二维数组（画板）：直接拍平，夹到 0~15
+    return grid.flat().map((v) => Math.max(0, Math.min(15, v | 0)))
+  }
+  // 字符串数组（图案，每行一个字符串）：拼接后逐字符转灰度
+  return grid.join('').split('').map(charToVal)
 }
 export function seqToGrid(seq, side = SIDE) {
   const g = []

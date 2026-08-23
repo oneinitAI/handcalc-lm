@@ -229,6 +229,7 @@ app.innerHTML = `
 
     <section class="card" id="genCard">
       <h2>肆 · 生成</h2>
+      <div class="cap-note"><b>⚠ 先看这里——生成效果请放低预期：</b>你的模型只有<b>几百个参数</b>（真实 GPT 有几千亿），它学到的只是"哪些字大概爱跟哪些字"。生成结果会<b>很幼稚、可能车轱辘话、甚至像乱码</b>——<b>这是小模型的正常表现，不是 bug</b>。这一页的价值在于：亲眼看见<b>逐字生成的过程</b>、<b>注意力的流动</b>，以及 loss 下降带来的能力变化。真想看"像样的文章"，那需要几十亿参数 + 海量数据（去「前沿/论文」tab 了解真实的它们）。</div>
       <div class="corpus-pick">
         <button id="modeCont" class="chip on" title="续写模式：输入几个字，模型接着写下去（预训练后可用）">续写模式</button>
         <button id="modeQa" class="chip" title="问答模式：输入问题，模型试着回答（需要先微调解锁）">问答模式</button>
@@ -332,6 +333,7 @@ app.innerHTML = `
     <div id="tab-image" class="tab-panel">
       <section class="card" id="pixelCard">
         <h2>壹 · 图像模型（像素即序列）</h2>
+        <div class="cap-note"><b>⚠ 生成效果请放低预期：</b>迷你模型（n_embd=8、1 层）+ 图案里大量白底像素，生成的图可能<b>不像你选的图案、甚至整幅空白</b>——<b>这不是 bug，是小模型的正常表现</b>（真实画图模型如 Stable Diffusion 有几十亿参数 + 海量训练数据）。这一页的价值在于：亲眼看见<b>"自回归逐像素生成"</b>和<b>"扩散加噪/去噪"</b>这两个真实原理在浏览器里跑起来。想验证模型确实学到了，可以<b>放大训练步数 + 调高生成温度</b>再生成对比。</div>
         <p class="muted">图像在模型眼里 = <b>256 个像素值（16×16 灰度 16 级）</b>。训练它"猜下一个像素"——和文字模型<b>同一个架构</b>，换数据就能画图。</p>
         <div class="corpus-pick" id="pixelPick">
           ${PIXEL_PATTERNS.map((p) => `<button class="chip" data-pix="${p.id}">${p.name}</button>`).join('')}
@@ -430,6 +432,7 @@ app.innerHTML = `
       </div>
     <section class="card" id="voiceCard">
       <h2>壹 · 语音模型（旋律序列）</h2>
+      <div class="cap-note"><b>⚠ 生成效果请放低预期：</b>迷你模型生成的旋律可能<b>不流畅、像乱按琴键、甚至一直停在一个音</b>——<b>这是小模型的正常表现，不是 bug</b>（真实语音/音乐模型有海量数据 + 大得多的网络）。这一页的价值在于：看见<b>音高（频率）的物理</b>、听见<b>一个 Transformer 如何把旋律当"猜下一个音"来建模</b>。试试<b>加大训练步数</b>、<b>调高生成温度</b>，旋律会更"活"一点。</div>
       <p class="muted">旋律 = <b>一串音高值</b>（简谱 1-7 + 0 休止）。训练它"猜下一个音"——学会后模型能<b>自己续写旋律并演奏</b>。</p>
       <div class="corpus-pick" id="melodyPick">
         ${MELODIES.map((m) => `<button class="chip" data-mel="${m.id}">${m.name}</button>`).join('')}
@@ -1520,7 +1523,7 @@ function trainPixel() {
     }
     pixLossChart.push(p.losses[p.losses.length - 1])
     pixLossChart.draw()
-    $('pixInfo').textContent = `训练中… ${done}/${total}`
+    $('pixInfo').textContent = `训练中… ${done}/${total} · loss ${p.losses[p.losses.length - 1].toFixed(3)}`
     if (done < total) requestAnimationFrame(loop)
     else { p.trained = true; $('pixGenBtn').disabled = false; $('pixStage').textContent = '已学会'; $('pixInfo').textContent = '完成！点「生成」看它画' }
   }
