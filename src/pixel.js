@@ -83,7 +83,8 @@ export const PIXEL_PATTERNS = [
 
 // ---- 序列转换 ----
 export function gridToSeq(grid) {
-  return grid.join('').split('').map(charToVal)
+  // 直接扁平化数字网格（修复：grid.join('') 会插入逗号导致负 token id）
+  return grid.flat().map((v) => Math.max(0, Math.min(15, v | 0)))
 }
 export function seqToGrid(seq, side = SIDE) {
   const g = []
@@ -161,20 +162,26 @@ export function attachDrawing(canvas, onGrid) {
     ctx.fillRect(c * cell + 0.5, r * cell + 0.5, cell - 1, cell - 1)
   }
 
-  canvas.addEventListener('mousedown', (e) => {
+  // Pointer Events：鼠标 + 触屏统一支持
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId)
     drawing = true
     const rect = canvas.getBoundingClientRect()
     paint(e.clientX - rect.left, e.clientY - rect.top)
     onGrid(gridToSeq(grid))
   })
-  canvas.addEventListener('mousemove', (e) => {
+  canvas.addEventListener('pointermove', (e) => {
     if (!drawing) return
     const rect = canvas.getBoundingClientRect()
     paint(e.clientX - rect.left, e.clientY - rect.top)
     onGrid(gridToSeq(grid))
   })
-  canvas.addEventListener('mouseup', () => { drawing = false })
-  canvas.addEventListener('mouseleave', () => { drawing = false })
+  const stop = () => { drawing = false }
+  canvas.addEventListener('pointerup', stop)
+  canvas.addEventListener('pointercancel', stop)
+  canvas.addEventListener('pointerleave', stop)
+  canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false })
 
   return {
     clear() {

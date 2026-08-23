@@ -1164,6 +1164,7 @@ function setCorpus(text, title) {
 }
 document.querySelectorAll('.chip').forEach((btn) => {
   btn.addEventListener('click', () => {
+    if (!btn.dataset.id) return // 非语料 chip（图案/语音/词典等）不走语料逻辑
     const c = CORPUS.find((x) => x.id === btn.dataset.id)
     setCorpus(c.text, c.title)
   })
