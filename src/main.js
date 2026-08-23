@@ -598,10 +598,8 @@ function wireUp() {
     // 但它 fire 的 change 事件是 composed+bubbles，会冒泡到宿主，这里转发为 input
     w.addEventListener('change', () => { w.dispatchEvent(new Event('input', { bubbles: true })) })
   })
-  replace('select', 'wired-select', (w, el) => {
-    w.innerHTML = el.innerHTML
-    if (el.title) w.setAttribute('title', el.title)
-  })
+  // select 不替换为 wired（wired-elements 无 wired-select，wired-combo 的 value/事件与原生 select 不兼容）。
+  // 原生 select 保留，CSS 已手绘化（答题线样式），value/change 事件完全正常。
   replace('textarea', 'wired-textarea', (w, el) => {
     w.value = el.value
     if (el.placeholder) w.setAttribute('placeholder', el.placeholder)
