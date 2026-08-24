@@ -18,3 +18,7 @@ npm-debug.log*
 Thumbs.db
 .playwright-mcp/ 
 .vercel
+
+# playwright e2e
+test-results/
+playwright-report/

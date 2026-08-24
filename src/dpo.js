@@ -61,9 +61,16 @@ export function answerLogProb(params, seq, xLen, cfg) {
  * 返回 { loss }。
  */
 export function dpoTrainStep(params, refParams, cfg, opt, x, yw, yl, beta = 0.1) {
-  const seqW = [...x, ...yw]
-  const seqL = [...x, ...yl]
-  const xLen = x.length
+  // 序列长度不得超过 block_size，否则 forward 里 wpe[t] 越界为 undefined 直接崩溃
+  // （此前 prompt(3)+回答(≤24) 可达 27 > 中档 block_size 16，「开始 DPO 训练」必崩）。
+  // 处理：超长时保留窗口末尾（保证回答完整在窗内），并按剩余 prompt 数重算掩码起点。
+  const fit = (xArr, yArr) => {
+    const seq = [...xArr, ...yArr].slice(-cfg.block_size)
+    const keptX = seq.length - yArr.length
+    return { seq, xLen: Math.max(1, keptX) }
+  }
+  const { seq: seqW, xLen: lenW } = fit(x, yw)
+  const { seq: seqL, xLen: lenL } = fit(x, yl)
 
   // 4 次前向：πθ/πref × yw/yl
   const fW = forward(params, seqW, null, cfg)
@@ -71,10 +78,10 @@ export function dpoTrainStep(params, refParams, cfg, opt, x, yw, yl, beta = 0.1)
   const rW = forward(refParams, seqW, null, cfg)
   const rL = forward(refParams, seqL, null, cfg)
 
-  const lpThetaW = seqLogProb(fW.logits, seqW, xLen)
-  const lpThetaL = seqLogProb(fL.logits, seqL, xLen)
-  const lpRefW = seqLogProb(rW.logits, seqW, xLen)
-  const lpRefL = seqLogProb(rL.logits, seqL, xLen)
+  const lpThetaW = seqLogProb(fW.logits, seqW, lenW)
+  const lpThetaL = seqLogProb(fL.logits, seqL, lenL)
+  const lpRefW = seqLogProb(rW.logits, seqW, lenW)
+  const lpRefL = seqLogProb(rL.logits, seqL, lenL)
 
   // 隐式奖励
   const rewW = beta * (lpThetaW - lpRefW)
@@ -90,8 +97,8 @@ export function dpoTrainStep(params, refParams, cfg, opt, x, yw, yl, beta = 0.1)
   const coeffL = beta * sig
 
   // 构造回答部分梯度并通过现有 backward 传播
-  const dlogitsW = makeDlogits(fW.logits, seqW, xLen, coeffW)
-  const dlogitsL = makeDlogits(fL.logits, seqL, xLen, coeffL)
+  const dlogitsW = makeDlogits(fW.logits, seqW, lenW, coeffW)
+  const dlogitsL = makeDlogits(fL.logits, seqL, lenL, coeffL)
   zeroGrad(params)
   backward(params, fW.cache, dlogitsW, cfg)
   backward(params, fL.cache, dlogitsL, cfg)

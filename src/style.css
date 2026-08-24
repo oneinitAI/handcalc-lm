@@ -316,6 +316,28 @@ textarea { border: 1.5px dashed rgba(47, 42, 36, 0.3); }
 .calc-key { font-family: var(--serif); font-size: 14px; border: 1px solid var(--line); background: transparent; padding: 6px; cursor: pointer; }
 .calc-key:hover { background: rgba(212, 205, 192, 0.3); }
 
+/* ===== Transformer：注意力 / softmax 演示柱状图 =====
+   此前 #attnBars/#softBars 及 .attn-bar/.soft-bar/.fill 完全没有样式，
+   fill 高度是百分比但父容器高度为 auto → 0，柱子永远不可见 */
+.attn-bars, .soft-bars { display: flex; gap: 22px; align-items: flex-end; height: 130px; padding: 8px 4px 2px; margin: 8px 0; }
+.attn-bar, .soft-bar {
+  flex: 0 0 64px; height: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+}
+.attn-bar .fill, .soft-bar .fill {
+  width: 34px; min-height: 4px;
+  background: var(--accent, #b3442c);
+  border: 1.5px solid rgba(43, 38, 32, 0.5);
+  border-radius: 3px 3px 0 0;
+}
+.soft-bar .fill { background: rgba(31, 122, 109, 0.75); }
+.attn-demo { display: flex; gap: 10px; margin-bottom: 4px; }
+.attn-demo-token {
+  font-family: var(--hand); font-size: 16px; cursor: pointer;
+  border: 1.5px solid var(--line); background: transparent; padding: 4px 14px; border-radius: 4px;
+}
+.attn-demo-token.on { border-color: var(--accent); color: var(--accent); font-weight: bold; }
+
 /* ===== 词典 / 论文 / 前沿 / 成就 ===== */
 .dict-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .dict-item {
