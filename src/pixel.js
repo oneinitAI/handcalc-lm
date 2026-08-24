@@ -83,10 +83,12 @@ export const PIXEL_PATTERNS = [
 
 // ---- 序列转换 ----
 export function gridToSeq(grid) {
-  // grid 行既可能是字符串（代码生成图案 'f','0'…），也可能是数字数组（attachDrawing 手绘板）
-  // 数字行直接展开；此前对数字行 join('') 会混入 ',' 字符，charToVal(',') = -43，
-  // 产生越界 token，训练/生成时 wte[-43] 为 undefined 直接崩溃
-  return grid.flatMap((row) => (typeof row === 'string' ? [...row].map(charToVal) : row))
+  if (Array.isArray(grid[0])) {
+    // 数字二维数组（画板）：直接拍平，夹到 0~15
+    return grid.flat().map((v) => Math.max(0, Math.min(15, v | 0)))
+  }
+  // 字符串数组（图案，每行一个字符串）：拼接后逐字符转灰度
+  return grid.join('').split('').map(charToVal)
 }
 export function seqToGrid(seq, side = SIDE) {
   const g = []
@@ -164,20 +166,26 @@ export function attachDrawing(canvas, onGrid) {
     ctx.fillRect(c * cell + 0.5, r * cell + 0.5, cell - 1, cell - 1)
   }
 
-  canvas.addEventListener('mousedown', (e) => {
+  // Pointer Events：鼠标 + 触屏统一支持
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId)
     drawing = true
     const rect = canvas.getBoundingClientRect()
     paint(e.clientX - rect.left, e.clientY - rect.top)
     onGrid(gridToSeq(grid))
   })
-  canvas.addEventListener('mousemove', (e) => {
+  canvas.addEventListener('pointermove', (e) => {
     if (!drawing) return
     const rect = canvas.getBoundingClientRect()
     paint(e.clientX - rect.left, e.clientY - rect.top)
     onGrid(gridToSeq(grid))
   })
-  canvas.addEventListener('mouseup', () => { drawing = false })
-  canvas.addEventListener('mouseleave', () => { drawing = false })
+  const stop = () => { drawing = false }
+  canvas.addEventListener('pointerup', stop)
+  canvas.addEventListener('pointercancel', stop)
+  canvas.addEventListener('pointerleave', stop)
+  canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false })
 
   return {
     clear() {
