@@ -598,10 +598,9 @@ function wireUp() {
     // 但它 fire 的 change 事件是 composed+bubbles，会冒泡到宿主，这里转发为 input
     w.addEventListener('change', () => { w.dispatchEvent(new Event('input', { bubbles: true })) })
   })
-  replace('select', 'wired-select', (w, el) => {
-    w.innerHTML = el.innerHTML
-    if (el.title) w.setAttribute('title', el.title)
-  })
+  // 注意：不替换 <select>。wired-elements v3 并未注册 'wired-select' 元素（v3 对应组件是
+  // wired-combo），替换后的自定义元素不会升级：.value 永远为 undefined 且无法交互，
+  // 导致 档位/优化器/问答套/图案选择 等全部下拉框失效。保留原生 select（CSS 已有手绘风回退样式）。
   replace('textarea', 'wired-textarea', (w, el) => {
     w.value = el.value
     if (el.placeholder) w.setAttribute('placeholder', el.placeholder)
@@ -863,8 +862,11 @@ $('resetBtn').addEventListener('click', () => {
 // ---------- 模型快照（localStorage 保存/加载）----------
 function saveSnapshot() {
   if (!state.model) { alert('先构建模型'); return }
+  // state.model.params 即 { name: { value, grad } } 字典（没有 .value 这一层），
+  // 此前误读 state.model.params.value（undefined）→ JSON.stringify 返回 undefined →
+  // JSON.parse 直接抛 "undefined" is not valid JSON，快照功能完全不可用
   const data = {
-    params: JSON.parse(JSON.stringify(state.model.params.value)),
+    params: JSON.parse(JSON.stringify(paramsToPlain(state.model.params))),
     cfg: { ...state.model.cfg },
     itos: state.model.itos.slice(),
     stoi: state.model.stoi,
@@ -890,7 +892,12 @@ function loadSnapshot() {
   const data = snaps[snaps.length - 1]
   if (!state.model) buildModel()
   const m = state.model
-  for (const key in m.params.value) m.params.value[key] = data.params[key].map((row) => row.slice())
+  // 快照 params 形如 { name: matrix }，逐个写回模型的 value（保留原 grad 缓冲）
+  for (const key in m.params) {
+    const mat = data.params[key]
+    if (!mat || !mat.length) continue
+    m.params[key] = { value: mat.map((row) => row.slice()), grad: m.params[key].grad }
+  }
   m.cfg.vocab_size = data.cfg.vocab_size
   m.itos = data.itos.slice()
   m.stoi = { ...data.stoi }
@@ -943,8 +950,16 @@ function buildSft() {
   return true
 }
 
+/** 把参数字典 { name: { value, grad } } 拍平成 { name: matrix }（快照/对比用） */
+function paramsToPlain(params) {
+  const plain = {}
+  for (const k in params) plain[k] = params[k].value
+  return plain
+}
+
 function snapshotWeights() {
-  state.snap = deepCopy(state.model.params.value)
+  // 此前误读 state.model.params.value（undefined）→ deepCopy 抛错，「记快照」按钮无效
+  state.snap = deepCopy(paramsToPlain(state.model.params))
   state.showingBefore = false
   $('cmpBtn').disabled = false
   $('cmpBtn').textContent = '切到：微调前'
@@ -953,10 +968,11 @@ function snapshotWeights() {
 
 function toggleCompare() {
   if (!state.snap) return
-  const cur = state.model.params.value
-  const tmp = deepCopy(cur)
-  for (const key in cur) cur[key] = deepCopy(state.snap[key])
-  state.snap = tmp
+  for (const key in state.model.params) {
+    const curMat = state.model.params[key].value
+    state.model.params[key] = { value: deepCopy(state.snap[key]), grad: state.model.params[key].grad }
+    state.snap[key] = curMat
+  }
   state.showingBefore = !state.showingBefore
   $('cmpBtn').textContent = state.showingBefore ? '切到：微调后' : '切到：微调前'
   heatmap.draw()
@@ -1164,9 +1180,12 @@ function setCorpus(text, title) {
   buildModel()
   lossChart.draw()
 }
-document.querySelectorAll('.chip').forEach((btn) => {
+// 只给「语料」卡片里的图案 chip 绑定切换语料；此前误用全局 '.chip' 选择器，
+// 导致 自己画/清空画板/应用简谱/载入问答 等所有 chip 点击都会因 c undefined 抛 TypeError
+document.querySelectorAll('#dataCard .chip[data-id]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const c = CORPUS.find((x) => x.id === btn.dataset.id)
+    if (!c) return
     setCorpus(c.text, c.title)
   })
 })
@@ -1866,7 +1885,9 @@ $('quantBits').addEventListener('input', () => {
 $('quantGenBtn').addEventListener('click', () => {
   if (!state.model) { alert('先构建并训练文本模型'); return }
   const bits = +$('quantBits').value
-  const qp = JSON.parse(JSON.stringify(state.model.params.value))
+  // 同 saveSnapshot：params 是 { name: { value, grad } } 字典，逐个拷贝 value 矩阵
+  const qp = {}
+  for (const k in state.model.params) qp[k] = { value: JSON.parse(JSON.stringify(state.model.params[k].value)) }
   if (bits < 32) {
     const maxV = Math.pow(2, bits - 1) - 1
     for (const k in qp) {
@@ -2085,4 +2106,9 @@ $('size').addEventListener('change', () => {
   if ($('size').value !== 'ultratiny' && mu) mu.remove()
 })
 
-setCorpus(CORPUS[0].text, CORPUS[0].title)
+// 初始语料：必须等 wired-textarea 完成首次升级渲染（firstUpdated 应用 pendingValue）后再读。
+// 此前同步调用时 host .value getter 返回空串 → buildModel 弹「请输入或选择语料」且初始模型构建失败。
+;(() => {
+  const boot = () => setCorpus(CORPUS[0].text, CORPUS[0].title)
+  requestAnimationFrame(() => requestAnimationFrame(boot))
+})()

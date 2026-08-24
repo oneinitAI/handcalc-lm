@@ -83,7 +83,10 @@ export const PIXEL_PATTERNS = [
 
 // ---- 序列转换 ----
 export function gridToSeq(grid) {
-  return grid.join('').split('').map(charToVal)
+  // grid 行既可能是字符串（代码生成图案 'f','0'…），也可能是数字数组（attachDrawing 手绘板）
+  // 数字行直接展开；此前对数字行 join('') 会混入 ',' 字符，charToVal(',') = -43，
+  // 产生越界 token，训练/生成时 wte[-43] 为 undefined 直接崩溃
+  return grid.flatMap((row) => (typeof row === 'string' ? [...row].map(charToVal) : row))
 }
 export function seqToGrid(seq, side = SIDE) {
   const g = []
